@@ -27,11 +27,9 @@ if( PCL_FOUND )
   target_link_libraries( project ${PCL_LIBRARIES} )
 endif()
 
-set(KINECT_SDK_INCLUDE "C:\\Program Files\\Azure Kinect SDK v1.2.0\\sdk\\include")
-include_directories( ${KINECT_SDK_INCLUDE} )
+set(KINECT_SDK_INCLUDE "C:/Program Files/Azure Kinect SDK v1.2.0/sdk/include/")
+set(EIGEN_INCLUDE "F:/Software/eigen-3.3.7/")
+include_directories( ${KINECT_SDK_INCLUDE} ${EIGEN_INCLUDE})
 
-set(KINECT_SDK_LIB64 "C:\\Program Files\\Azure Kinect SDK v1.2.0\\sdk\\windows-desktop\\amd64\\release\\lib")
-link_directories( ${KINECT_SDK_LIB64} )
-
-set(KINECT_SDK_LIBRARIES "k4a.lib" "k4arecord.lib")
-target_link_libraries( project ${KINECT_SDK_LIBRARIES} )
+set(KINECT_SDK_LIB64 "C:/Program Files/Azure Kinect SDK v1.2.0/sdk/windows-desktop/amd64/release/lib")
+target_link_libraries( project ${KINECT_SDK_LIB64}/k4a.lib ${KINECT_SDK_LIB64}/k4arecord.lib )

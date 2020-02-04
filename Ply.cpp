@@ -4,8 +4,6 @@
 //
 
 #include "Ply.h"
-#include <vector>
-#include <Eigen/Dense>
 
 using namespace std;
 using namespace Eigen;
