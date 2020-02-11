@@ -2,8 +2,28 @@ cmake_minimum_required( VERSION 3.15 )
  
 # Create Project
 project( solution )
-add_executable( project main.cpp )
+set( SOURCE
+	src/IOUtils.cpp
+	src/KinectAzureUtils.cpp
+	src/main.cpp
+	src/MatrixUtils.cpp
+	src/PclUtils.cpp
+	src/Ply.cpp)
+
+set (HEADERS
+	src/IOUtils.h
+	src/KinectAzureUtils.h
+	src/MatrixUtils.h
+	src/PclUtils.h
+	src/Ply.h)
+
+add_executable( project ${SOURCE} ${HEADERS} )
 set_property( DIRECTORY PROPERTY VS_STARTUP_PROJECT project )
+set_property (TARGET project
+  PROPERTY
+    # Enable C++17 standard compliance
+    CXX_STANDARD 17
+)
  
 # Find Packages
 find_package( PCL 1.9 REQUIRED )

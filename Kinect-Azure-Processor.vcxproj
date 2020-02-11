@@ -87,6 +87,7 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>F:\Software\eigen-3.3.7;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -115,6 +116,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>F:\Software\eigen-3.3.7;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -123,6 +125,21 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="IOUtils.cpp" />
+    <ClCompile Include="KinectAzureUtils.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="MatrixUtils.cpp" />
+    <ClCompile Include="PclUtils.cpp" />
+    <ClCompile Include="Ply.cpp" />
+    <ClCompile Include="PointCloudFilter.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="IOUtils.h" />
+    <ClInclude Include="KinectAzureUtils.h" />
+    <ClInclude Include="MatrixUtils.h" />
+    <ClInclude Include="PclUtils.h" />
+    <ClInclude Include="Ply.h" />
+    <ClInclude Include="PointCloudFilter.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
