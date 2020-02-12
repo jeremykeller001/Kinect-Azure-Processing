@@ -110,13 +110,58 @@ void KinectAzureUtils::write_point_cloud(const char* file_name, const k4a_image_
 	ofs_text.write(ss.str().c_str(), (std::streamsize)ss.str().length());
 }
 
+Ply KinectAzureUtils::generatePly(const char* file_name, const k4a_image_t point_cloud, int point_count) {
+	int width = k4a_image_get_width_pixels(point_cloud);
+	int height = k4a_image_get_height_pixels(point_cloud);
+
+	k4a_float3_t* point_cloud_data = (k4a_float3_t*)(void*)k4a_image_get_buffer(point_cloud);
+
+	Ply ply;
+	ply.setFileName(std::string(file_name));
+
+	for (int i = 0; i < width * height; i++)
+	{
+		if (isnan(point_cloud_data[i].xyz.x) || isnan(point_cloud_data[i].xyz.y) || isnan(point_cloud_data[i].xyz.z))
+		{
+			continue;
+		}
+
+		Eigen::RowVector3d point;
+		point(0) = (double)point_cloud_data[i].xyz.x;
+		point(1) = (double)point_cloud_data[i].xyz.y;
+		point(2) = (double)point_cloud_data[i].xyz.z;
+		ply.addPoint(point);
+	}
+
+	return ply;
+}
+
+
+void KinectAzureUtils::print_capture_info(recording_t* file)
+{
+	k4a_image_t image = k4a_capture_get_depth_image(file->capture);
+
+	printf("%-32s", file->filename);
+
+	if (image != NULL)
+	{
+		uint64_t timestamp = k4a_image_get_device_timestamp_usec(image);
+		printf("  %7ju usec", timestamp);
+		k4a_image_release(image);
+		image = NULL;
+	}
+	else
+	{
+		printf("  %12s", "");
+	}
+	printf("\n");
+}
+
 uint64_t KinectAzureUtils::first_capture_timestamp(k4a_capture_t capture)
 {
-	// DU MOD
 	uint64_t timestamp = k4a_image_get_device_timestamp_usec(k4a_capture_get_depth_image(capture));
 	k4a_image_release(k4a_capture_get_depth_image(capture));
 	return timestamp;
-	// DU MOD
 }
 
 int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath) {
@@ -216,18 +261,13 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath) {
 
 	if (result == K4A_RESULT_SUCCEEDED)
 	{
-		printf("%-32s  %12s  %12s  %12s\n", "Source file", "COLOR", "DEPTH", "IR");
-		printf("==========================================================================\n");
-
 		// Get frames in order
-		// By default, set to be 1 second in + a random amount of time up to 3 seconds later
-		int randMod = (file_count) * 15 * 3;
-		srand(time(NULL));
-		randMod = rand() % randMod;
-		int startFrame = (file_count) * 15 + randMod;
-		int endFrame = startFrame + (file_count);
-		std::cout << "Start Frame: " << startFrame << std::endl;
-		for (int frame = 0; frame <= endFrame; frame++)
+		// TODO: How to get this to process all frames from mkv file
+		// TODO: How to group together 
+		uint64_t previousTimestamp = (uint64_t)-1;
+		int startFrame = file_count * 15 * 2;
+		int startFrame2 = file_count * 15;
+		for (int frame = 0; frame <= 1000000; frame++)
 		{
 			uint64_t min_timestamp = (uint64_t)-1;
 			KinectAzureUtils::recording_t* min_file = NULL;
@@ -248,11 +288,14 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath) {
 				}
 			}
 
-			// DU MODIFICATION: Begin
+			if (frame > startFrame2) {
+				std::cout << std::endl << "Frame" << frame << " Timestamp difference: " << (uint64_t)min_timestamp - previousTimestamp << std::endl;
+				previousTimestamp = min_timestamp;
+				print_capture_info(min_file);
+			}
 
-			// Generate point cloud for this frame
-			// Modify this value to cut off initial part of capture
 			if (frame > startFrame) {
+				// Generate point cloud for this frame
 				k4a_image_t depthImage = k4a_capture_get_depth_image(min_file->capture);
 
 				// Generate xy table
@@ -292,10 +335,6 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath) {
 
 				std::cout << "output: " << outputFileName.str() << std::endl << std::endl;
 				write_point_cloud(outputFileName.str().c_str(), point_cloud, point_count);
-
-				auto t4 = std::chrono::steady_clock::now();
-				// DU MODIFICATION: End
-				// Uncomment this if you would like to pause in between frame outputs
 			}
 
 			k4a_capture_release(min_file->capture);

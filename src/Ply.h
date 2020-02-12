@@ -46,6 +46,7 @@ public:
 	void addPoint(Eigen::RowVector3d point);
 	void addPoint(double x, double y, double z);
 
+	void outputToFile(int frameIndex);
 };
 
 #endif

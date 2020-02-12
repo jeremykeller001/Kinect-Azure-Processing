@@ -45,6 +45,8 @@ public:
 
 	static void write_point_cloud(const char* file_name, const k4a_image_t point_cloud, int point_count);
 	
+	static void print_capture_info(recording_t* file);
+
 	static uint64_t first_capture_timestamp(k4a_capture_t capture);
 
 	static int outputRecordingsToPlyFiles(std::string dirPath);
