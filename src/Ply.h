@@ -40,6 +40,8 @@ public:
 
 	int getPointCount();
 
+	void setFileName(std::string fileName);
+
 	void setPoints(std::vector<Eigen::RowVector3d> points);
 
 	// Utils

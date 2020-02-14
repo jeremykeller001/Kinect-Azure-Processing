@@ -164,6 +164,68 @@ uint64_t KinectAzureUtils::first_capture_timestamp(k4a_capture_t capture)
 	return timestamp;
 }
 
+void KinectAzureUtils::orderAndIndexRecordings(recording_t* files, std::vector<CalibrationInfo> frameInfo, int fileCount) {
+	// Assign the master file to be the first file, this is where we will start calibration
+	std::string masterFile = std::string(files[0].filename);
+
+	int startFrame = -1;
+	for (int i = 0; i < frameInfo.size(); i++) {
+		if (frameInfo.at(i).fileName.compare(masterFile) == 0) {
+			startFrame = i;
+			break;
+		}
+	}
+
+	if (startFrame == -1) {
+		// TODO: Throw exception
+	}
+
+	int endFrame = frameInfo.size() - 1;
+	int currentIndex = 0;
+	int previousStartFrameIndex = startFrame;
+
+
+	// Initialize file index counters
+	std::vector<FileIndexCounter> fileIndexCounters;
+	for (int i = 1; i < fileCount; i++) {
+		FileIndexCounter fileIndexCounter = { files[0].filename, fileCount };
+		// Initialize all index counts to 0
+		for (int j = 1; j < fileCount; j++) {
+			fileIndexCounter.indexCounts[j] = 0;
+		}
+		fileIndexCounters.push_back({files[0].filename, fileCount});
+	}
+
+	for (int i = startFrame + 1; i < endFrame; i++) {
+		if(frameInfo.at(i).fileName.compare(masterFile) == 0) {
+			previousStartFrameIndex = i;
+		}
+		else if (i - previousStartFrameIndex >= fileCount) {
+			// If we do not hit the master file again after running the iteration for the file count, 
+			// then this means the master file had a frame skip
+			// Skip extra processing until the master file comes up again
+			continue;
+		}
+		else {
+			// Compare to file index counter info
+			for (int j = 0; j < fileIndexCounters.size(); j++) {
+				if (frameInfo.at(i).fileName.compare(fileIndexCounters.at(j).fileName) == 0) {
+					// Compute diff between current index (i) count and previousStartFrameIndex
+					int indexCountIndex = i - previousStartFrameIndex;
+					fileIndexCounters.at(j).indexCounts[indexCountIndex]++;
+				}
+			}
+		}
+	}
+
+	// Find the most frequently occuring index counts, this will determine the ordering of frames
+
+
+
+
+
+}
+
 int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath) {
 	// Grab filenames to read in
 	std::vector<std::string> mkvFiles = IOUtils::obtainMkvFilesFromDirectory(dirPath);
@@ -288,13 +350,25 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath) {
 				}
 			}
 
-			if (frame > startFrame2) {
-				std::cout << std::endl << "Frame" << frame << " Timestamp difference: " << (uint64_t)min_timestamp - previousTimestamp << std::endl;
+			if (frame > discardFrameEnd) {
+				uint64_t timestamp = (uint64_t) min_timestamp - previousTimestamp;
+				std::cout << std::endl << "Frame" << frame << " Timestamp difference: " << timestamp << std::endl;
 				previousTimestamp = min_timestamp;
 				print_capture_info(min_file);
+				CalibrationInfo ci = { std::string(min_file->filename), timestamp };
+				frameInfo.push_back(ci);
 			}
+			else if (frame == orderingFrameEnd) {
+				// Perform all calibrations here
+				orderAndIndexRecordings(files, frameInfo, file_count);
+			}
+			else if (frame > orderingFrameEnd) {
+				uint64_t timestamp = (uint64_t)min_timestamp - previousTimestamp;
+				std::cout << std::endl << "Frame" << frame << " Timestamp difference: " << timestamp << std::endl;
 
-			if (frame > startFrame) {
+				previousTimestamp = min_timestamp;
+				print_capture_info(min_file);
+
 				// Generate point cloud for this frame
 				k4a_image_t depthImage = k4a_capture_get_depth_image(min_file->capture);
 
