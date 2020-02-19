@@ -30,6 +30,9 @@
 class KinectAzureUtils
 {
 private:
+	static const uint64_t timestampDiff15 = 33300;
+	static const uint64_t timestampDiff30 = 66600;
+
 	Ply generatePly(const char* file_name, const k4a_image_t point_cloud, int point_count);
 
 	typedef struct
@@ -37,6 +40,12 @@ private:
 		std::string fileName;
 		uint64_t timestampDiff;
 	} CalibrationInfo;
+
+	typedef struct
+	{
+		std::string fileName;
+		int timestampCount;
+	} TimestampCounter;
 
 	typedef struct
 	{
@@ -53,25 +62,45 @@ private:
 		int fileCount;
 		int* indexCounts = new int[fileCount - 1];
 	} FileIndexCounter;
-	 
-public:
 
+	typedef struct
+	{
+		int index;
+		uint64_t timestamp;
+		KinectAzureUtils::recording_t* file;
+	} FrameInfo;
 
-	static void orderAndIndexRecordings(recording_t* files,  std::vector<CalibrationInfo> frameInfo, int fileCount);
+	static std::string getStartRecording(recording_t* files, std::vector<CalibrationInfo> frameInfo, int fileCount);
+
+	// Unused
+	static void orderAndIndexRecordings(recording_t* files, std::vector<CalibrationInfo> frameInfo, int fileCount);
 
 	static void createXYTable(const k4a_calibration_t* calibration, k4a_image_t xy_table);
 
+	// Unused
 	static void generate_point_cloud(const k4a_image_t depth_image,
 		const k4a_image_t xy_table,
 		k4a_image_t point_cloud,
 		int* point_count);
 
+	// Unused
 	static void write_point_cloud(const char* file_name, const k4a_image_t point_cloud, int point_count);
-	
+
+	// For debugging only
 	static void print_capture_info(recording_t* file);
 
 	static uint64_t first_capture_timestamp(k4a_capture_t capture);
 
+	static FrameInfo getNextFrame(int fileCount, recording_t* files);
+
+	static Ply generatePly(FrameInfo frameInfo, const k4a_image_t xyTable);
+
+	static Ply generatePointCloud(FrameInfo frameInfo, k4a_calibration_t* calibrations);
+
+	static Ply outputPointCloudGroup(std::vector<Ply> plys, uint64_t groupCount, 
+		std::unordered_map<std::string, Eigen::Matrix4Xd> transformations);
+
+public:
 	static int outputRecordingsToPlyFiles(std::string dirPath);
 };
 #endif

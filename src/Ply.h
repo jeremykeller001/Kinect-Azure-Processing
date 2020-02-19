@@ -30,8 +30,7 @@ public:
 	// Default constructor
 	Ply();
 
-	// {x y z} constructor
-	Ply(std::vector<Eigen::RowVector3d> points);
+	Ply(std::string fileName, std::vector<Eigen::RowVector3d> points);
 
 	// Getters/Setters
 	std::vector<Eigen::RowVector3d> getPoints();
@@ -49,6 +48,9 @@ public:
 	void addPoint(double x, double y, double z);
 
 	void outputToFile(int frameIndex);
+
+	// TODO: implement
+	void merge(Ply plyToMerge);
 };
 
 #endif

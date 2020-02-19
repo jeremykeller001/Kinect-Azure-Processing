@@ -18,13 +18,8 @@
 class IOUtils
 {
 public:
-	typedef struct Transform4x4 {
-		std::string fileName;
-		Eigen::Matrix4Xd transform;
-	} Transform4x4;
-
 	static std::vector<std::string> obtainMkvFilesFromDirectory(std::string dirPath);
-	static std::vector<Transform4x4> readTransformationFile(std::string fileName);
+	static std::unordered_map<std::string, Eigen::Matrix4Xd> readTransformationFile(std::string fileName);
 };
 #endif 
 
