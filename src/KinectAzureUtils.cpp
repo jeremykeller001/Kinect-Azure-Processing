@@ -328,6 +328,7 @@ std::string KinectAzureUtils::getStartRecording(recording_t* files, std::vector<
 	}
 
 	CalibrationInfo startFrameInfo = { timestampDifferenceCounts.at(maxTimestampDiff).fileName, maxTimestampDiff };
+	return timestampDifferenceCounts.at(maxTimestampDiff).fileName;
 }
 
 KinectAzureUtils::FrameInfo KinectAzureUtils::getNextFrame(int fileCount, recording_t* files) {
@@ -380,6 +381,7 @@ Ply KinectAzureUtils::outputPointCloudGroup(std::vector<Ply> plys, uint64_t grou
 	// apply transformation to each ply
 	// Merge plys to master ply
 	// Output merged ply to file with name: groupCount.ply
+	return Ply();
 }
 
 int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath) {
@@ -536,18 +538,16 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath) {
 				else {
 
 				}
-
-				
 			}
 
-			k4a_capture_release(min_file->capture);
-			min_file->capture = NULL;
+			k4a_capture_release(frameInfo.file->capture);
+			frameInfo.file->capture = NULL;
 
 			// Advance the recording with the lowest current timestamp forward.
-			k4a_stream_result_t stream_result = k4a_playback_get_next_capture(min_file->handle, &min_file->capture);
+			k4a_stream_result_t stream_result = k4a_playback_get_next_capture(frameInfo.file->handle, &frameInfo.file->capture);
 			if (stream_result == K4A_STREAM_RESULT_FAILED)
 			{
-				printf("ERROR: Failed to read next capture from file: %s\n", min_file->filename);
+				printf("ERROR: Failed to read next capture from file: %s\n", frameInfo.file->filename);
 				result = K4A_RESULT_FAILED;
 				break;
 			}

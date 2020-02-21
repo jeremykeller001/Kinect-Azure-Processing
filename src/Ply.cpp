@@ -11,8 +11,9 @@ Ply::Ply() {
 	pointCount = 0;
 }
 
-Ply::Ply(vector<RowVector3d> points) {
-	this->points = points;
+Ply::Ply(string fileNamee, vector<RowVector3d> pointss) {
+	fileName = fileNamee;
+	points = pointss;
 	pointCount = points.size();
 }
 
@@ -23,6 +24,10 @@ int Ply::getPointCount() {
 void Ply::setPoints(vector<RowVector3d> points) {
 	this->points = points;
 	pointCount = points.size();
+}
+
+void Ply::setFileName(string fileNamee) {
+	fileName = fileNamee;
 }
 
 //

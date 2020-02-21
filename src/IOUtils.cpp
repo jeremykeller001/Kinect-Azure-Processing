@@ -34,3 +34,7 @@ vector<string> IOUtils::obtainMkvFilesFromDirectory(string dirPath) {
 
 	return mkvFiles;
 }
+
+unordered_map<string, Eigen::Matrix4Xd> IOUtils::readTransformationFile(string fileName) {
+	return unordered_map<string, Eigen::Matrix4Xd>();
+}
