@@ -384,10 +384,10 @@ Ply KinectAzureUtils::outputPointCloudGroup(std::vector<Ply> plys, uint64_t grou
 	return Ply();
 }
 
-int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath) {
+int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::string transformFilePath) {
 	// Grab filenames to read in
 	std::vector<std::string> mkvFiles = IOUtils::obtainMkvFilesFromDirectory(dirPath);
-	std::unordered_map<std::string, Eigen::Matrix4Xd> transformations = IOUtils::readTransformationFile(dirPath);
+	std::unordered_map<std::string, Eigen::Matrix4Xd> transformations = IOUtils::readTransformationFile(transformFilePath);
 
 	if (mkvFiles.size() < 1) {
 		printf("At least one mkv video must be found for processing");
@@ -532,8 +532,9 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath) {
 
 
 					// Restart group
+					groupFrames.clear();
 					startGroupTimestamp = frameInfo.timestamp;
-					
+					groupFrames.push_back(generatePointCloud(frameInfo, calibrations));
 				}
 				else {
 

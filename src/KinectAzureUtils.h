@@ -101,6 +101,6 @@ private:
 		std::unordered_map<std::string, Eigen::Matrix4Xd> transformations);
 
 public:
-	static int outputRecordingsToPlyFiles(std::string dirPath);
+	static int outputRecordingsToPlyFiles(std::string dirPath, std::string transformPath);
 };
 #endif
