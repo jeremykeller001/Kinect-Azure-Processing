@@ -77,7 +77,7 @@ void Ply::outputToFile(int frameIndex, string directory) {
 	out << "end_header" << endl;
 
 	for (RowVector3d point : points) {
-		out << point(0) << " " << point(1) << " " << point(2);
+		out << point(0) << " " << point(1) << " " << point(2) << endl;
 	}
 
 	out.close();

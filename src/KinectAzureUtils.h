@@ -31,8 +31,8 @@
 class KinectAzureUtils
 {
 private:
-	static const uint64_t timestampDiff15 = 33300;
-	static const uint64_t timestampDiff30 = 66600;
+	static const uint64_t timestampDiff15 = 66600;
+	static const uint64_t timestampDiff30 = 33300;
 
 	Ply generatePly(const char* file_name, const k4a_image_t point_cloud, int point_count);
 
