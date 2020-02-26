@@ -17,7 +17,7 @@ using namespace std;
 
 static string MKV_FILE_EXT = ".mkv";
 
-bool endsWith(string const fileName, string const fileExtension) {
+bool IOUtils::endsWith(string const fileName, string const fileExtension) {
 	if (fileName.length() > fileExtension.length()) {
 		return (0 == fileName.compare(fileName.length() - fileExtension.length(), fileExtension.length(), fileExtension));
 	}
