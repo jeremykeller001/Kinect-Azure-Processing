@@ -529,15 +529,18 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 				}
 				else if (groupTimestampDiff > maxTimestampDiff) {
 					// Process previous group
-
+					Ply groupPly = MatrixUtils::applyTransforms(groupFrames, transformations);
+					groupPly.outputToFile(groupCount, dirPath);
 
 					// Restart group
 					groupFrames.clear();
+					groupCount++;
 					startGroupTimestamp = frameInfo.timestamp;
 					groupFrames.push_back(generatePointCloud(frameInfo, calibrations));
 				}
 				else {
-
+					// Add current frame to group
+					groupFrames.push_back(generatePointCloud(frameInfo, calibrations));
 				}
 			}
 

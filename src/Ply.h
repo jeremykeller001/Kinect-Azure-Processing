@@ -9,6 +9,9 @@
 #pragma once
 #include <string>
 #include <vector>
+#include <sstream>
+#include <iostream>
+#include <fstream>
 #include <Eigen/Dense>
 
 #ifndef PLY_H
@@ -47,9 +50,8 @@ public:
 	void addPoint(Eigen::RowVector3d point);
 	void addPoint(double x, double y, double z);
 
-	void outputToFile(int frameIndex);
+	void outputToFile(int frameIndex, std::string directory);
 
-	// TODO: implement
 	void merge(Ply plyToMerge);
 };
 

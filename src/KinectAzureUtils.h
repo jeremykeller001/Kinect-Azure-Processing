@@ -15,7 +15,6 @@
 #include <sstream>
 #include <iostream>
 #include <fstream>
-#include <sstream>
 #include <chrono>
 #include <thread>
 #include <stdio.h>
@@ -23,6 +22,8 @@
 #include <vector>
 #include "IOUtils.h"
 #include "Ply.h"
+#include "IOUtils.h"
+#include "MatrixUtils.h"
 
 #ifndef KINECT_AZURE_UTILS_H
 #define KINECT_AZURE_UTILS_H

@@ -47,5 +47,22 @@ Ply MatrixUtils::applySingleTransform(Ply pointCloud, Eigen::Matrix4Xd transform
 }
 
 Ply MatrixUtils::applyTransforms(vector<Ply> pointClouds, unordered_map<string, Eigen::Matrix4Xd> transformations) {
+	// Match point clouds to transforms
+	// If a point cloud cannot be matched to a transform, assume it does not need to be transformed
 
+	// Initialize new point cloud
+	Ply combinedPc = Ply();
+
+	// Loop through point clouds
+	for (Ply pc : pointClouds) {
+		for (auto it = transformations.begin(); it != transformations.end(); it++) {
+			// For each pc, loop through transform and find matches
+			if (IOUtils::endsWith(pc.getFileName(), it->first)) {
+				combinedPc.merge(applySingleTransform(pc, it->second));
+				break;
+			}
+		}
+	}
+
+	return Ply();
 }
