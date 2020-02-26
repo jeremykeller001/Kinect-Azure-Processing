@@ -55,14 +55,16 @@ Ply MatrixUtils::applyTransforms(vector<Ply> pointClouds, unordered_map<string, 
 
 	// Loop through point clouds
 	for (Ply pc : pointClouds) {
+		Ply pcToMerge = pc;
 		for (auto it = transformations.begin(); it != transformations.end(); it++) {
 			// For each pc, loop through transform and find matches
 			if (IOUtils::endsWith(pc.getFileName(), it->first)) {
-				combinedPc.merge(applySingleTransform(pc, it->second));
+				pcToMerge = applySingleTransform(pc, it->second);
 				break;
 			}
-			combinedPc.merge(pc);
 		}
+
+		combinedPc.merge(pcToMerge);
 	}
 
 	return combinedPc;
