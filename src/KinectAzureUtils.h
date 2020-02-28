@@ -73,27 +73,16 @@ private:
 
 	static std::string getStartRecording(recording_t* files, std::vector<CalibrationInfo> frameInfo, int fileCount);
 
-	// Unused
-	static void orderAndIndexRecordings(recording_t* files, std::vector<CalibrationInfo> frameInfo, int fileCount);
-
 	static void createXYTable(const k4a_calibration_t* calibration, k4a_image_t xy_table);
 
-	// Unused
-	static void generate_point_cloud(const k4a_image_t depth_image,
-		const k4a_image_t xy_table,
-		k4a_image_t point_cloud,
-		int* point_count);
-
-	// Unused
-	static void write_point_cloud(const char* file_name, const k4a_image_t point_cloud, int point_count);
-
-	// For debugging only
+	// For debugging
 	static void print_capture_info(recording_t* file);
 
 	static uint64_t first_capture_timestamp(k4a_capture_t capture);
 
 	static FrameInfo getNextFrame(int fileCount, recording_t* files);
 
+	// TODO: Insert 
 	static Ply generatePly(FrameInfo frameInfo, const k4a_image_t xyTable);
 
 	static Ply generatePointCloud(FrameInfo frameInfo, k4a_calibration_t* calibrations);

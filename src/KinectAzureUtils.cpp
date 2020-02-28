@@ -44,37 +44,6 @@ void KinectAzureUtils::createXYTable(const k4a_calibration_t* calibration, k4a_i
 	}
 }
 
-void KinectAzureUtils::generate_point_cloud(const k4a_image_t depth_image,
-	const k4a_image_t xy_table,
-	k4a_image_t point_cloud,
-	int* point_count)
-{
-	int width = k4a_image_get_width_pixels(depth_image);
-	int height = k4a_image_get_height_pixels(depth_image);
-
-	uint16_t* depth_data = (uint16_t*)(void*)k4a_image_get_buffer(depth_image);
-	k4a_float2_t* xy_table_data = (k4a_float2_t*)(void*)k4a_image_get_buffer(xy_table);
-	k4a_float3_t* point_cloud_data = (k4a_float3_t*)(void*)k4a_image_get_buffer(point_cloud);
-
-	*point_count = 0;
-	for (int i = 0; i < width * height; i++)
-	{
-		if (depth_data[i] != 0 && !isnan(xy_table_data[i].xy.x) && !isnan(xy_table_data[i].xy.y))
-		{
-			point_cloud_data[i].xyz.x = xy_table_data[i].xy.x * (float)depth_data[i];
-			point_cloud_data[i].xyz.y = xy_table_data[i].xy.y * (float)depth_data[i];
-			point_cloud_data[i].xyz.z = (float)depth_data[i];
-			(*point_count)++;
-		}
-		else
-		{
-			point_cloud_data[i].xyz.x = nanf("");
-			point_cloud_data[i].xyz.y = nanf("");
-			point_cloud_data[i].xyz.z = nanf("");
-		}
-	}
-}
-
 Ply KinectAzureUtils::generatePly(FrameInfo frameInfo, const k4a_image_t xy_table) 
 {
 	const k4a_image_t depthImage = k4a_capture_get_depth_image(frameInfo.file->capture);
@@ -101,68 +70,6 @@ Ply KinectAzureUtils::generatePly(FrameInfo frameInfo, const k4a_image_t xy_tabl
 	return ply;
 }
 
-void KinectAzureUtils::write_point_cloud(const char* file_name, const k4a_image_t point_cloud, int point_count)
-{
-	int width = k4a_image_get_width_pixels(point_cloud);
-	int height = k4a_image_get_height_pixels(point_cloud);
-
-	k4a_float3_t* point_cloud_data = (k4a_float3_t*)(void*)k4a_image_get_buffer(point_cloud);
-
-	// save to the ply file
-	std::ofstream ofs(file_name); // text mode first
-	ofs << "ply" << std::endl;
-	ofs << "format ascii 1.0" << std::endl;
-	ofs << "element vertex"
-		<< " " << point_count << std::endl;
-	ofs << "property float x" << std::endl;
-	ofs << "property float y" << std::endl;
-	ofs << "property float z" << std::endl;
-	ofs << "end_header" << std::endl;
-	ofs.close();
-
-	std::stringstream ss;
-	for (int i = 0; i < width * height; i++)
-	{
-		if (isnan(point_cloud_data[i].xyz.x) || isnan(point_cloud_data[i].xyz.y) || isnan(point_cloud_data[i].xyz.z))
-		{
-			continue;
-		}
-
-		ss << (float)point_cloud_data[i].xyz.x << " " << (float)point_cloud_data[i].xyz.y << " "
-			<< (float)point_cloud_data[i].xyz.z << std::endl;
-	}
-
-	std::ofstream ofs_text(file_name, std::ios::out | std::ios::app);
-	ofs_text.write(ss.str().c_str(), (std::streamsize)ss.str().length());
-}
-
-Ply KinectAzureUtils::generatePly(const char* file_name, const k4a_image_t point_cloud, int point_count) {
-	int width = k4a_image_get_width_pixels(point_cloud);
-	int height = k4a_image_get_height_pixels(point_cloud);
-
-	k4a_float3_t* point_cloud_data = (k4a_float3_t*)(void*)k4a_image_get_buffer(point_cloud);
-
-	Ply ply;
-	ply.setFileName(std::string(file_name));
-
-	for (int i = 0; i < width * height; i++)
-	{
-		if (isnan(point_cloud_data[i].xyz.x) || isnan(point_cloud_data[i].xyz.y) || isnan(point_cloud_data[i].xyz.z))
-		{
-			continue;
-		}
-
-		Eigen::RowVector3d point;
-		point(0) = (double)point_cloud_data[i].xyz.x;
-		point(1) = (double)point_cloud_data[i].xyz.y;
-		point(2) = (double)point_cloud_data[i].xyz.z;
-		ply.addPoint(point);
-	}
-
-	return ply;
-}
-
-
 void KinectAzureUtils::print_capture_info(recording_t* file)
 {
 	k4a_image_t image = k4a_capture_get_depth_image(file->capture);
@@ -188,103 +95,6 @@ uint64_t KinectAzureUtils::first_capture_timestamp(k4a_capture_t capture)
 	uint64_t timestamp = k4a_image_get_device_timestamp_usec(k4a_capture_get_depth_image(capture));
 	k4a_image_release(k4a_capture_get_depth_image(capture));
 	return timestamp;
-}
-
-void KinectAzureUtils::orderAndIndexRecordings(recording_t* files, std::vector<CalibrationInfo> frameInfo, int fileCount) {
-	// Assign the master file to be the first file, this is where we will start calibration
-	std::string masterFile = std::string(files[0].filename);
-	int startFrame = -1;
-	for (int i = 0; i < frameInfo.size(); i++) {
-		if (frameInfo.at(i).fileName.compare(masterFile) == 0) {
-			startFrame = i;
-			break;
-		}
-	}
-
-	// If master frame is never found
-	if (startFrame == -1) {
-		// TODO: Throw exception
-	}
-
-	int endFrame = frameInfo.size() - 1;
-	int currentIndex = 0;
-	int previousStartFrameIndex = startFrame;
-
-
-	// Initialize file index counters
-	/*
-	std::vector<FileIndexCounter> fileIndexCounters;
-	for (int i = 1; i < fileCount; i++) {
-		FileIndexCounter fileIndexCounter = { files[0].filename, fileCount };
-		// Initialize all index counts to 0
-		for (int j = 1; j < fileCount; j++) {
-			fileIndexCounter.indexCounts[j] = 0;
-		}
-		fileIndexCounters.push_back(fileIndexCounter);
-	}
-	*/
-
-	std::unordered_map<uint64_t, TimestampCounter> timestampDifferenceCounts;
-	for (int i = startFrame + 1; i < endFrame; i++) {
-		// Incremement timestampDifferenceCounts
-		uint64_t timestampDiff = frameInfo.at(i).timestampDiff;
-		std::string fileName = frameInfo.at(i).fileName;
-		if (timestampDifferenceCounts.count(timestampDiff) > 0) {
-			// Counter for frame timestamp diff is the same, increment
-			TimestampCounter count = timestampDifferenceCounts.at(timestampDiff);
-			count.timestampCount++;
-			timestampDifferenceCounts.erase(timestampDiff);
-			timestampDifferenceCounts.insert({timestampDiff, count});
-		}
-		else {
-			// Counter for frame timestamp is new, insert with count of 1
-			timestampDifferenceCounts.insert({ timestampDiff, {fileName, 1} });
-		}
-
-		/*
-		// Reset each time master frame is found
-		if(fileName.compare(masterFile) == 0) {
-			previousStartFrameIndex = i;
-		}
-		else if (i - previousStartFrameIndex >= fileCount) {
-			// If we do not hit the master file again after running the iteration for the file count, 
-			// then this means the master file had a frame skip
-			// Skip extra processing until the master file comes up again
-			continue;
-		}
-		else {
-			// Compare to file index counter info
-			for (int j = 0; j < fileIndexCounters.size(); j++) {
-				if (fileName.compare(fileIndexCounters.at(j).fileName) == 0) {
-					// Compute diff between current index (i) count and previousStartFrameIndex
-					int indexCountIndex = i - previousStartFrameIndex;
-					fileIndexCounters.at(j).indexCounts[indexCountIndex]++;
-				}
-			}
-		}
-		*/
-	}
-
-	// Determine the frame with the max usec timestamp difference before it, this will be the true starting capture
-	uint64_t maxTimestampDiff = 0;
-	for (auto& x : timestampDifferenceCounts) {
-		uint64_t timestampDiff = x.first;
-		TimestampCounter timestampCounter = x.second;
-		std::string fileName = timestampCounter.fileName;
-		int count = timestampCounter.timestampCount;
-
-		// Only process timestamp info with a count of > 3 and if the timestamp difference is greater than the max tracked timestamp so far
-		if (count > 3 && timestampDiff > maxTimestampDiff) {
-			maxTimestampDiff = timestampDiff;
-		}
-	}
-
-	// If no timestamp could be evaluated, throw exception
-	if (maxTimestampDiff == 0) {
-		// TODO: throw exception
-	}
-
-	CalibrationInfo startFrameInfo = { timestampDifferenceCounts.at(maxTimestampDiff).fileName, maxTimestampDiff };
 }
 
 std::string KinectAzureUtils::getStartRecording(recording_t* files, std::vector<CalibrationInfo> frameInfo, int fileCount) {
@@ -375,10 +185,10 @@ Ply KinectAzureUtils::generatePointCloud(FrameInfo frameInfo, k4a_calibration_t*
 Ply KinectAzureUtils::outputPointCloudGroup(std::vector<Ply> plys, uint64_t groupCount,
 	std::unordered_map<std::string, Eigen::Matrix4Xd> transformations, std::string outputPath) {
 
-	Ply groupPly = MatrixUtils::applyTransforms(groupFrames, transformations);
-	groupPly.outputToFile(groupCount, dirPath);
+	Ply combinedPly = MatrixUtils::applyTransforms(plys, transformations);
+	combinedPly.outputToFile(groupCount, outputPath);
 
-	return groupPly();
+	return combinedPly;
 }
 
 int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::string transformFilePath) {
