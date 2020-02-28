@@ -99,7 +99,7 @@ private:
 	static Ply generatePointCloud(FrameInfo frameInfo, k4a_calibration_t* calibrations);
 
 	static Ply outputPointCloudGroup(std::vector<Ply> plys, uint64_t groupCount, 
-		std::unordered_map<std::string, Eigen::Matrix4Xd> transformations);
+		std::unordered_map<std::string, Eigen::Matrix4Xd> transformations, std::string outputPath);
 
 public:
 	static int outputRecordingsToPlyFiles(std::string dirPath, std::string transformPath);

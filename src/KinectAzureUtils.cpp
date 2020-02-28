@@ -362,26 +362,23 @@ Ply KinectAzureUtils::generatePointCloud(FrameInfo frameInfo, k4a_calibration_t*
 	k4a_image_t xyTable = NULL;
 
 	k4a_result_t result1 = k4a_image_create(K4A_IMAGE_FORMAT_CUSTOM,
-		calibrations[0].depth_camera_calibration.resolution_width,
-		calibrations[0].depth_camera_calibration.resolution_height,
-		calibrations[0].depth_camera_calibration.resolution_width * (int)sizeof(k4a_float2_t),
+		calibrations[frameInfo.index].depth_camera_calibration.resolution_width,
+		calibrations[frameInfo.index].depth_camera_calibration.resolution_height,
+		calibrations[frameInfo.index].depth_camera_calibration.resolution_width * (int)sizeof(k4a_float2_t),
 		&xyTable);
 
-	createXYTable(&calibrations[0], xyTable);
+	createXYTable(&calibrations[frameInfo.index], xyTable);
 
 	return generatePly(frameInfo, xyTable);
 }
 
 Ply KinectAzureUtils::outputPointCloudGroup(std::vector<Ply> plys, uint64_t groupCount,
-	std::unordered_map<std::string, Eigen::Matrix4Xd> transformations) {
+	std::unordered_map<std::string, Eigen::Matrix4Xd> transformations, std::string outputPath) {
 
-	// TODO: figure out where body isolation fits in here
+	Ply groupPly = MatrixUtils::applyTransforms(groupFrames, transformations);
+	groupPly.outputToFile(groupCount, dirPath);
 
-	// Match plys with transformations
-	// apply transformation to each ply
-	// Merge plys to master ply
-	// Output merged ply to file with name: groupCount.ply
-	return Ply();
+	return groupPly();
 }
 
 int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::string transformFilePath) {
@@ -453,16 +450,11 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 			break;
 		}
 
-		// Start DU MOD
-
 		k4a_result_t calibrationResult = k4a_playback_get_calibration(files[i].handle, &calibrations[i]);
 		if (calibrationResult != K4A_RESULT_SUCCEEDED) {
 			printf("Error getting calibration for: %d\n", i);
 			return 1;
 		}
-
-		// End DU MOD
-
 
 		// Read the first capture of each recording into memory.
 		k4a_stream_result_t stream_result = k4a_playback_get_next_capture(files[i].handle, &files[i].capture);
@@ -530,12 +522,11 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 					// Process previous group
 					// Don't process first group
 					if (groupCount != 0 && groupCount > 155) {
-						Ply groupPly = MatrixUtils::applyTransforms(groupFrames, transformations);
-						groupPly.outputToFile(groupCount, dirPath);
+						outputPointCloudGroup(groupFrames, groupCount, transformations, dirPath);
 					}
 
-
 					// Restart group
+					std::cout << std::endl << std::endl;
 					groupFrames.clear();
 					groupFrames.shrink_to_fit();
 					groupCount++;
