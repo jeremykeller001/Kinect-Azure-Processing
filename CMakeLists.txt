@@ -24,6 +24,9 @@ set_property (TARGET project
     # Enable C++17 standard compliance
     CXX_STANDARD 17
 )
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
  
 # Find Packages
 find_package( PCL 1.9 REQUIRED )

@@ -17,5 +17,7 @@ public:
 	void applyNearestNeighborFilter(pcl::PointCloud<pcl::PointXYZ>::Ptr inCloud, pcl::PointCloud<pcl::PointXYZ>::Ptr outCloud);
 
 	void generateMesh(pcl::PointCloud<pcl::PointXYZ>::Ptr inCloud);
+
+	void generateTriangleMesh(pcl::PointCloud<pcl::PointXYZ>::Ptr inCloud);
 };
 #endif
