@@ -8,7 +8,7 @@
 
 #include "IOUtils.h"
 
-#include <filesystem>
+#include "boost/filesystem.hpp" 
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -28,7 +28,7 @@ bool IOUtils::endsWith(string const fileName, string const fileExtension) {
 
 vector<string> IOUtils::obtainMkvFilesFromDirectory(string dirPath) {
 	vector<string> mkvFiles;
-	for (const auto& entry : filesystem::directory_iterator(dirPath)) {
+	for (const auto& entry : boost::filesystem::directory_iterator(dirPath)) {
 		string fileName = entry.path().string();
 		if (endsWith(fileName, MKV_FILE_EXT)) {
 			mkvFiles.push_back(fileName);

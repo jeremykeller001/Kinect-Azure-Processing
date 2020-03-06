@@ -2,6 +2,7 @@
 
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_types.h>
+#include <string>
 #include "Ply.h"
 
 
@@ -14,10 +15,12 @@ public:
 	static pcl::PointCloud<pcl::PointXYZ>::Ptr convertPlyToPointCloud(Ply pointCloud);
 	static pcl::PCLPointCloud2 convertPlyToPointCloud2(Ply pointCloud);
 
-	void applyNearestNeighborFilter(pcl::PointCloud<pcl::PointXYZ>::Ptr inCloud, pcl::PointCloud<pcl::PointXYZ>::Ptr outCloud);
+	static void applyNearestNeighborFilter(pcl::PointCloud<pcl::PointXYZ>::Ptr inCloud, pcl::PointCloud<pcl::PointXYZ>::Ptr outCloud);
 
-	void generateMesh(pcl::PointCloud<pcl::PointXYZ>::Ptr inCloud);
+	static void generateMesh(pcl::PointCloud<pcl::PointXYZ>::Ptr inCloud);
 
-	void generateTriangleMesh(pcl::PointCloud<pcl::PointXYZ>::Ptr inCloud);
+	static void generateTriangleMesh(pcl::PointCloud<pcl::PointXYZ>::Ptr inCloud);
+
+	static void outputToFile(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, std::string fileName);
 };
 #endif

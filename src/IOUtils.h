@@ -11,6 +11,7 @@
 #include <Eigen/Dense>
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 #ifndef IO_UTILS_H
 #define IO_UTILS_H

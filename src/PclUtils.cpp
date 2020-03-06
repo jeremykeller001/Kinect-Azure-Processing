@@ -6,11 +6,18 @@
 #include <pcl/features/normal_3d.h>
 #include <pcl/surface/gp3.h>
 #include <pcl/io/vtk_io.h>
+#include <pcl/io/pcd_io.h>
 
-pcl::PointCloud<pcl::PointXYZ>::Ptr convertPlyToPointCloud(Ply pointCloud) {
-	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud;
+void PclUtils::outputToFile(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, std::string fileName) {
+	pcl::io::savePCDFileASCII(fileName, *cloud);
+}
 
-	for (Eigen::RowVector3d point : pointCloud.getPoints()) {
+pcl::PointCloud<pcl::PointXYZ>::Ptr PclUtils::convertPlyToPointCloud(Ply pointCloud) {
+	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
+	cloud->points.resize(pointCloud.getPointCount());
+
+	for (int i = 0; i < pointCloud.getPointCount(); i++) {
+		Eigen::RowVector3d point = pointCloud.getPoints().at(i);
 		cloud->push_back(pcl::PointXYZ(point(0), point(1), point(2)));
 	}
 
