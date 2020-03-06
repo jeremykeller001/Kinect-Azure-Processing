@@ -21,15 +21,15 @@ add_executable( project ${SOURCE} ${HEADERS} )
 set_property( DIRECTORY PROPERTY VS_STARTUP_PROJECT project )
 set_property (TARGET project
   PROPERTY
-    # Enable C++17 standard compliance
-    CXX_STANDARD 17
+    # Enable C++14 standard compliance
+    CXX_STANDARD 14
 )
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
  
 # Find Packages
-find_package( PCL 1.9 REQUIRED )
+find_package( PCL 1.10.0 REQUIRED )
  
 if( PCL_FOUND )
   # Additional Include Directories
