@@ -307,9 +307,9 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 
 			if (frame < discardFrameEnd) {
 				uint64_t timestamp = (uint64_t) frameInfo.timestamp - previousTimestamp;
-				std::cout << std::endl << "Frame" << frame << " Timestamp difference: " << timestamp << std::endl;
+				//std::cout << std::endl << "Frame" << frame << " Timestamp difference: " << timestamp << std::endl;
 				previousTimestamp = frameInfo.timestamp;
-				print_capture_info(frameInfo.file);
+				//print_capture_info(frameInfo.file);
 				CalibrationInfo ci = { std::string(frameInfo.file->filename), timestamp };
 				calibrationInfo.push_back(ci);
 			}
@@ -331,7 +331,7 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 				else if (groupTimestampDiff > maxTimestampDiff) {
 					// Process previous group
 					// Don't process first group
-					if (groupCount != 0 && groupCount > 155) {
+					if (groupCount != 0) {
 						outputPointCloudGroup(groupFrames, groupCount, transformations, dirPath);
 					}
 
