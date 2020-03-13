@@ -51,6 +51,7 @@ public:
 	void addPoint(double x, double y, double z);
 
 	void outputToFile(int frameIndex, std::string directory);
+	void outputToPcd(int frameIndex, std::string directory);
 
 	void merge(Ply plyToMerge);
 };

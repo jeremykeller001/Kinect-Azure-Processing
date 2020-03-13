@@ -83,3 +83,25 @@ void Ply::outputToFile(int frameIndex, string directory) {
 	out.close();
 }
 
+void Ply::outputToPcd(int frameIndex, string directory) {
+	stringstream outputFullPath;
+	outputFullPath << directory << "\\" << frameIndex << ".pcd";
+
+	ofstream out;
+	out.open(outputFullPath.str(), ios::out);
+	out << "# .PCD v.7 ? Point Cloud Data file format" << endl;
+	out << "VERSION .7" << endl;
+	out << "TYPE F F F" << endl;
+	out << "WIDTH " << pointCount << endl;
+	out << "HEIGHT 1" << endl;
+	out << "VIEWPOINT 0 0 0 1 0 0 0" << endl;
+	out << "POINTS " << pointCount << endl;
+	out << "DATA ascii" << endl;
+
+	for (RowVector3d point : points) {
+		out << point(0) << " " << point(1) << " " << point(2) << endl;
+	}
+
+	out.close();
+}
+
