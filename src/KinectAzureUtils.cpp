@@ -298,9 +298,17 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 		uint64_t maxTimestampDiff = calibrations[0].depth_camera_calibration.resolution_height == 1024 ? timestampDiff15 : timestampDiff30;
 		std::vector<Ply> groupFrames;
 
+		// Loop variables
+		int endThreshold = 5; // Number of consecutive frames without a master capture before we decide to end the processing
+		int missingMasterCount = 0; // Track the number of consecutive frames without a master capture
+
 		// Get frames in order
-		for (int frame = 0; frame <= 1000000; frame++)
+		for (int frame = 0; frame < 1000000; frame++)
 		{
+			if (missingMasterCount >= endThreshold) {
+				frame = 1000000;
+				break;
+			}
 			FrameInfo frameInfo = getNextFrame(file_count, files);
 
 			uint64_t timestamp = (uint64_t)frameInfo.timestamp - previousTimestamp;
@@ -331,8 +339,24 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 				else if (groupTimestampDiff > maxTimestampDiff) {
 					// Process previous group
 					// Don't process first group
-					if (groupCount != 0) {
-						outputPointCloudGroup(groupFrames, groupCount, transformations, dirPath);
+					if (groupCount != 0 && groupCount > 240) {
+						// Check whether group contains master capture
+						bool containsMaster = false;
+						for (Ply &groupFrame : groupFrames) {
+							if (IOUtils::endsWith(groupFrame.getFileName(), "Master.mkv")) {
+								containsMaster = true;
+								break;
+							}
+						}
+
+						// Only process group if it contains master frame
+						if (containsMaster) {
+							missingMasterCount = 0;
+							outputPointCloudGroup(groupFrames, groupCount, transformations, dirPath);
+						}
+						else {
+							missingMasterCount++;
+						}
 					}
 
 					// Restart group
