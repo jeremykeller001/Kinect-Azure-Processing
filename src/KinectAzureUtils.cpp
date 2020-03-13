@@ -339,7 +339,7 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 				else if (groupTimestampDiff > maxTimestampDiff) {
 					// Process previous group
 					// Don't process first group
-					if (groupCount != 0 && groupCount > 240) {
+					if (groupCount != 0) {
 						// Check whether group contains master capture
 						bool containsMaster = false;
 						for (Ply &groupFrame : groupFrames) {
