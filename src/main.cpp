@@ -15,16 +15,18 @@
 using namespace std;
 
 int main(int argc, char** argv) {
-	//std::string mkvDirectory = "C:\\Users\\Jeremy\\Desktop\\DU COB\\MkvTestFiles";
-	//std::string transformFilePath = "C:\\Users\\Jeremy\\Desktop\\DU COB\\MkvTestFiles\\Transforms.txt";
+	std::string mkvDirectory = "C:\\Users\\Jeremy\\Desktop\\DU COB\\ForJeremy\\ForJeremy";
+	std::string transformFilePath = "C:\\Users\\Jeremy\\Desktop\\DU COB\\ForJeremy\\ForJeremy\\CalFeb17Transv2.txt";
 
+	/*
 	if (argc < 3) {
 		cerr << "Usage: project.exe transformFile recordingDirectory" << endl;
 		return -1;
 	}
+	*/
 
-	string transformFilePath = string(argv[1]);
-	string mkvDirectory = string(argv[2]);
+	//string transformFilePath = string(argv[1]);
+	//string mkvDirectory = string(argv[2]);
 	return KinectAzureUtils::outputRecordingsToPlyFiles(mkvDirectory, transformFilePath);
 
 	return 0;

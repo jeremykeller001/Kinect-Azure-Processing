@@ -69,3 +69,24 @@ Ply MatrixUtils::applyTransforms(vector<Ply> pointClouds, unordered_map<string, 
 
 	return combinedPc;
 }
+
+vector<Eigen::RowVector3d> MatrixUtils::applyJointTrackingTransform(vector<Eigen::RowVector3d> jointPositions, Eigen::Matrix4Xd transform) {
+	// Loop through tracked joints
+	vector<Eigen::RowVector3d> jointPositionsTransformed;
+	for (Eigen::RowVector3d jointPosition : jointPositions) {
+		// Convert to 1x4 matrix
+		Eigen::Matrix4d matrix;
+		matrix(0, 0) = jointPosition(0);
+		matrix(1, 0) = jointPosition(1);
+		matrix(2, 0) = jointPosition(2);
+		matrix(3, 0) = 1.0;
+
+		// Apply transform
+		matrix = transform * matrix;
+
+		// Convert back to 3x1 matrix
+		jointPositionsTransformed.push_back(convertMatrix4ToRowVector3(matrix));
+	}
+
+	return jointPositionsTransformed;
+}

@@ -2,6 +2,7 @@
 
 #include <Eigen/Dense>
 #include <string>
+#include <k4a/k4a.h>
 
 #include "IOUtils.h"
 #include "Ply.h"
@@ -21,6 +22,7 @@ private:
 
 public:
 	static Ply applyTransforms(std::vector<Ply> pointClouds, std::unordered_map<std::string, Eigen::Matrix4Xd> transformations);
+	static std::vector<Eigen::RowVector3d> applyJointTrackingTransform(std::vector<Eigen::RowVector3d> jointPositions, Eigen::Matrix4Xd transform);
 };
 #endif MATRIX_UTILS_H
 

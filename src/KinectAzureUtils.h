@@ -34,8 +34,6 @@ private:
 	static const uint64_t timestampDiff15 = 66600;
 	static const uint64_t timestampDiff30 = 33300;
 
-	Ply generatePly(const char* file_name, const k4a_image_t point_cloud, int point_count);
-
 	typedef struct
 	{
 		std::string fileName;
@@ -64,6 +62,7 @@ private:
 		int* indexCounts = new int[fileCount - 1];
 	} FileIndexCounter;
 
+public:
 	typedef struct
 	{
 		int index;
@@ -71,6 +70,7 @@ private:
 		KinectAzureUtils::recording_t* file;
 	} FrameInfo;
 
+private:
 	static std::string getStartRecording(recording_t* files, std::vector<CalibrationInfo> frameInfo, int fileCount);
 
 	static void createXYTable(const k4a_calibration_t* calibration, k4a_image_t xy_table);
@@ -82,13 +82,12 @@ private:
 
 	static FrameInfo getNextFrame(int fileCount, recording_t* files);
 
-	// TODO: Insert 
 	static Ply generatePly(FrameInfo frameInfo, const k4a_image_t xyTable);
 
 	static Ply generatePointCloud(FrameInfo frameInfo, k4a_calibration_t* calibrations);
 
-	static Ply outputPointCloudGroup(std::vector<Ply> plys, uint64_t groupCount, 
-		std::unordered_map<std::string, Eigen::Matrix4Xd> transformations, std::string outputPath);
+	static void outputPointCloudGroup(std::vector<Ply> plys, uint64_t groupCount, 
+		std::unordered_map<std::string, Eigen::Matrix4Xd> transformations, std::string outputPath, std::vector<Eigen::RowVector3d> jointPositions);
 
 public:
 	static int outputRecordingsToPlyFiles(std::string dirPath, std::string transformPath);

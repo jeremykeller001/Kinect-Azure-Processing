@@ -8,6 +8,7 @@
 
 
 #include "KinectAzureUtils.h"
+#include "BodyTrackingUtils.h"
 
 // https://github.com/microsoft/Azure-Kinect-Sensor-SDK/blob/develop/examples/fastpointcloud/main.cpp
 void KinectAzureUtils::createXYTable(const k4a_calibration_t* calibration, k4a_image_t xy_table) {
@@ -44,7 +45,7 @@ void KinectAzureUtils::createXYTable(const k4a_calibration_t* calibration, k4a_i
 	}
 }
 
-Ply KinectAzureUtils::generatePly(FrameInfo frameInfo, const k4a_image_t xy_table) 
+Ply KinectAzureUtils::generatePly(KinectAzureUtils::FrameInfo frameInfo, const k4a_image_t xy_table)
 {
 	const k4a_image_t depthImage = k4a_capture_get_depth_image(frameInfo.file->capture);
 	int width = k4a_image_get_width_pixels(depthImage);
@@ -164,7 +165,7 @@ KinectAzureUtils::FrameInfo KinectAzureUtils::getNextFrame(int fileCount, record
 	return {index, minTimestamp, nextFile};
 }
 
-Ply KinectAzureUtils::generatePointCloud(FrameInfo frameInfo, k4a_calibration_t* calibrations) {
+Ply KinectAzureUtils::generatePointCloud(KinectAzureUtils::FrameInfo frameInfo, k4a_calibration_t* calibrations) {
 	// For debugging
 	print_capture_info(frameInfo.file);
 
@@ -182,13 +183,52 @@ Ply KinectAzureUtils::generatePointCloud(FrameInfo frameInfo, k4a_calibration_t*
 	return generatePly(frameInfo, xyTable);
 }
 
-Ply KinectAzureUtils::outputPointCloudGroup(std::vector<Ply> plys, uint64_t groupCount,
-	std::unordered_map<std::string, Eigen::Matrix4Xd> transformations, std::string outputPath) {
+void KinectAzureUtils::outputPointCloudGroup(std::vector<Ply> plys, uint64_t groupCount,
+	std::unordered_map<std::string, Eigen::Matrix4Xd> transformations, std::string outputPath, std::vector<Eigen::RowVector3d> jointPositions) {
 
+	// Apply transformations to move all point clouds into master coordinate system
 	Ply combinedPly = MatrixUtils::applyTransforms(plys, transformations);
-	combinedPly.outputToFile(groupCount, outputPath);
+	
 
-	return combinedPly;
+	//
+	// Filter out points not in bounding box;
+	//
+	
+	// Grab transformation for Sub2 to apply to jointPositions
+	Eigen::Matrix4Xd jointPositionTransformation;
+	for (auto it = transformations.begin(); it != transformations.end(); it++) {
+		// For each pc, loop through transform and find matches
+		if (it->first.compare("Sub2.mkv") == 0) {
+			jointPositionTransformation = it->second;
+		}
+	}
+
+	// Apply transform to joint locations
+	std::vector<Eigen::RowVector3d> jointPositionsTransformed = MatrixUtils::applyJointTrackingTransform(jointPositions, jointPositionTransformation);
+
+	// Create bounding box
+	BodyTrackingUtils::BoundingBox boundingBox = BodyTrackingUtils::createBoundingBox(jointPositionsTransformed);
+
+	// Filter out points from the combined Ply if they do not fit within the bounding box
+	Ply combinedFilteredPly;
+	for (Eigen::RowVector3d point : combinedPly.getPoints()) {
+		if (BodyTrackingUtils::withinBounds(point, boundingBox)) {
+			combinedFilteredPly.addPoint(point);
+		}
+	}
+
+	//
+	// Output to file
+	// Only if points exist in the cloud
+	//
+	if (combinedFilteredPly.getPointCount() > 0) {
+		//combinedFilteredPly.addPoint({ boundingBox.xMin, boundingBox.yMax, boundingBox.zMin });
+		//combinedFilteredPly.addPoint({ boundingBox.xMax, boundingBox.yMin, boundingBox.zMax });
+
+		combinedFilteredPly.outputToFile(groupCount, outputPath);
+		//combinedPly.outputToFile(groupCount * 1000, outputPath);
+	}
+
 }
 
 int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::string transformFilePath) {
@@ -215,6 +255,10 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 	}
 	memset(files, 0, sizeof(KinectAzureUtils::recording_t) * file_count);
 	memset(calibrations, 0, sizeof(k4a_calibration_t) * file_count);
+
+	// Create a body tracker
+	k4abt_tracker_t tracker = NULL;
+	bool trackerCaptureFound = false;
 
 	// Open each recording file and validate they were recorded in master/subordinate mode.
 	for (size_t i = 0; i < file_count; i++)
@@ -266,6 +310,19 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 			return 1;
 		}
 
+		// Set up body tracking if file is sub2
+		if (IOUtils::endsWith(files[i].filename, "Sub2.mkv")) {
+			trackerCaptureFound = true;
+			k4abt_tracker_configuration_t tracker_config = K4ABT_TRACKER_CONFIG_DEFAULT;
+			result = k4abt_tracker_create(&calibrations[i], tracker_config, &tracker);
+			if (result != K4A_RESULT_SUCCEEDED)
+			{
+				std::cerr << "Body tracker initialization failed!" << std::endl;
+				result = K4A_RESULT_FAILED;
+				break;
+			}
+		}
+
 		// Read the first capture of each recording into memory.
 		k4a_stream_result_t stream_result = k4a_playback_get_next_capture(files[i].handle, &files[i].capture);
 		if (stream_result == K4A_STREAM_RESULT_EOF)
@@ -282,6 +339,11 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 		}
 	}
 
+	if (!trackerCaptureFound) {
+		printf("ERROR: Sub2 capture for body tracking was not found");
+		result = K4A_RESULT_FAILED;
+	}
+
 	if (result == K4A_RESULT_SUCCEEDED)
 	{
 		// Calibration variables
@@ -294,9 +356,14 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 		uint64_t groupCount = 0;
 		uint64_t startGroupTimestamp = 0;
 		std::string startFileName;
-		// Assume all files are run with the same calibration
+		// Assume all files are run with the same frame rate
 		uint64_t maxTimestampDiff = calibrations[0].depth_camera_calibration.resolution_height == 1024 ? timestampDiff15 : timestampDiff30;
 		std::vector<Ply> groupFrames;
+
+		// Joint tracking variables
+
+		bool jointsObtained = false;
+		std::vector<Eigen::RowVector3d> sub2Joints;
 
 		// Loop variables
 		int endThreshold = 5; // Number of consecutive frames without a master capture before we decide to end the processing
@@ -309,7 +376,7 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 				frame = 1000000;
 				break;
 			}
-			FrameInfo frameInfo = getNextFrame(file_count, files);
+			KinectAzureUtils::FrameInfo frameInfo = getNextFrame(file_count, files);
 
 			uint64_t timestamp = (uint64_t)frameInfo.timestamp - previousTimestamp;
 
@@ -349,27 +416,44 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 							}
 						}
 
-						// Only process group if it contains master frame
-						if (containsMaster) {
+						// Only process group if it contains master frame and body tracking
+						if (containsMaster && jointsObtained) {
 							missingMasterCount = 0;
-							outputPointCloudGroup(groupFrames, groupCount, transformations, dirPath);
+							outputPointCloudGroup(groupFrames, groupCount, transformations, dirPath, sub2Joints);
+						}
+						else if(!containsMaster) {
+							missingMasterCount++;
 						}
 						else {
-							missingMasterCount++;
+							std::cerr << "Body tracking missing for group " << groupCount << ". Skipping." << std::endl;
 						}
 					}
 
 					// Restart group
 					std::cout << std::endl << std::endl;
+					jointsObtained = false;
 					groupFrames.clear();
 					groupFrames.shrink_to_fit();
 					groupCount++;
 					startGroupTimestamp = frameInfo.timestamp;
+					sub2Joints.clear();
+
+					// Add current frame to group
 					groupFrames.push_back(generatePointCloud(frameInfo, calibrations));
+
+					// If capture is Sub2, process joint tracking data
+					if (IOUtils::endsWith(frameInfo.file->filename, "Sub2.mkv")) {
+						jointsObtained = BodyTrackingUtils::predictJoints(groupCount, tracker, frameInfo.file->capture, &sub2Joints);
+					}
 				}
 				else {
 					// Add current frame to group
 					groupFrames.push_back(generatePointCloud(frameInfo, calibrations));
+
+					// If capture is Sub2, process joint tracking data
+					if (IOUtils::endsWith(frameInfo.file->filename, "Sub2.mkv")) {
+						jointsObtained = BodyTrackingUtils::predictJoints(groupCount, tracker, frameInfo.file->capture, &sub2Joints);
+					}
 				}
 			}
 

@@ -3,6 +3,7 @@ cmake_minimum_required( VERSION 3.15 )
 # Create Project
 project( solution )
 set( SOURCE
+	src/BodyTrackingUtils.cpp
 	src/IOUtils.cpp
 	src/KinectAzureUtils.cpp
 	src/main.cpp
@@ -11,6 +12,7 @@ set( SOURCE
 	src/Ply.cpp)
 
 set (HEADERS
+	src/BodyTrackingUtils.h
 	src/IOUtils.h
 	src/KinectAzureUtils.h
 	src/MatrixUtils.h
@@ -50,9 +52,11 @@ if( PCL_FOUND )
   target_link_libraries( project ${PCL_LIBRARIES} )
 endif()
 
-set(KINECT_SDK_INCLUDE "C:/Program Files/Azure Kinect SDK v1.2.0/sdk/include/")
+set(KINECT_SDK_INCLUDE "C:/Program Files/Azure Kinect SDK v1.3.0/sdk/include/")
+set(KINECT_BT_INCLUDE "C:/Program Files/Azure Kinect Body Tracking SDK/sdk/include")
 set(EIGEN_INCLUDE "F:/Software/eigen-3.3.7/")
-include_directories( ${KINECT_SDK_INCLUDE} ${EIGEN_INCLUDE})
+include_directories( ${KINECT_SDK_INCLUDE} ${KINECT_BT_INCLUDE} ${EIGEN_INCLUDE})
 
-set(KINECT_SDK_LIB64 "C:/Program Files/Azure Kinect SDK v1.2.0/sdk/windows-desktop/amd64/release/lib")
-target_link_libraries( project ${KINECT_SDK_LIB64}/k4a.lib ${KINECT_SDK_LIB64}/k4arecord.lib )
+set(KINECT_SDK_LIB64 "C:/Program Files/Azure Kinect SDK v1.3.0/sdk/windows-desktop/amd64/release/lib")
+set(KINECT_BT_LIB64 "C:/Program Files/Azure Kinect Body Tracking SDK/sdk/windows-desktop/amd64/release/lib")
+target_link_libraries( project ${KINECT_SDK_LIB64}/k4a.lib ${KINECT_SDK_LIB64}/k4arecord.lib ${KINECT_BT_LIB64}/k4abt.lib)
