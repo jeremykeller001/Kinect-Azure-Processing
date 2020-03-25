@@ -10,6 +10,7 @@
 #pragma once
 #include <k4a/k4a.h>
 #include <k4arecord/playback.h>
+#include <k4abt.h>
 #include <math.h>
 #include <string>
 #include <sstream>
@@ -48,7 +49,7 @@ private:
 
 	typedef struct
 	{
-		char* filename;
+		std::string filename;
 		k4a_playback_t handle;
 		k4a_record_configuration_t record_config;
 		k4a_capture_t capture;
@@ -88,6 +89,11 @@ private:
 
 	static void outputPointCloudGroup(std::vector<Ply> plys, uint64_t groupCount, 
 		std::unordered_map<std::string, Eigen::Matrix4Xd> transformations, std::string outputPath, std::vector<Eigen::RowVector3d> jointPositions);
+
+	static bool openFiles(KinectAzureUtils::recording_t** files, k4a_calibration_t** calibrations, k4abt_tracker_t& tracker, std::vector<std::string> mkvFiles);
+
+	static void closeFiles(int fileCount, KinectAzureUtils::recording_t** files);
+
 
 public:
 	static int outputRecordingsToPlyFiles(std::string dirPath, std::string transformPath);
