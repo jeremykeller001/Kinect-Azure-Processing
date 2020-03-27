@@ -247,7 +247,7 @@ bool KinectAzureUtils::openFiles(KinectAzureUtils::recording_t** filess, k4a_cal
 	k4a_result_t result = K4A_RESULT_SUCCEEDED;
 
 	// Open each recording file and validate they were recorded in master/subordinate mode.
-	for (size_t i = 0; i < file_count; i++)
+	for (int i = 0; i < file_count; i++)
 	{
 		char* filename = const_cast<char*>(mkvFiles.at(i).c_str());
 		files[i].filename = mkvFiles.at(i);
@@ -502,7 +502,7 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 		k4a_stream_result_t stream_result = k4a_playback_get_next_capture(frameInfo.file->handle, &frameInfo.file->capture);
 		if (stream_result == K4A_STREAM_RESULT_FAILED)
 		{
-			printf("ERROR: Failed to read next capture from file: %s\n", frameInfo.file->filename);
+			printf("ERROR: Failed to read next capture from file: %s\n", frameInfo.file->filename.c_str());
 			result = K4A_RESULT_FAILED;
 			break;
 		}
