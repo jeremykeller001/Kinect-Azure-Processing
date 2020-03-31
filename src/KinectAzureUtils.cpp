@@ -480,7 +480,15 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 					// Only process group if it contains master frame and body tracking (only if tracker capture exists)
 					if (containsMaster && (!trackerCaptureFound || jointsObtained)) {
 						missingMasterCount = 0;
+
+						// Decrement frame count for the current frame, this will not be processed and outputted
+						fileIndexCounter[frameInfo.file->filename] = fileIndexCounter[frameInfo.file->filename]--;
+
+						// Output combined point cloud
 						outputPointCloudGroup(groupFrames, groupCount, transformations, dirPath, sub2Joints, getFileIndexString(fileIndexCounter));
+
+						// Re-increment frame count since it will be accurate for the next group processing
+						fileIndexCounter[frameInfo.file->filename] = fileIndexCounter[frameInfo.file->filename]++;
 					}
 					else if (!containsMaster) {
 						missingMasterCount++;
