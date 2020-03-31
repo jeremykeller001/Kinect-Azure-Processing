@@ -50,7 +50,7 @@ public:
 	void addPoint(Eigen::RowVector3d point);
 	void addPoint(double x, double y, double z);
 
-	void outputToFile(int frameIndex, std::string directory);
+	void outputToFile(std::string fileName, std::string directory);
 	void outputToPcd(int frameIndex, std::string directory);
 
 	void merge(Ply plyToMerge);

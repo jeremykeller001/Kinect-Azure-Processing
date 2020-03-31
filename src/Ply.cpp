@@ -62,9 +62,9 @@ void Ply::merge(Ply plyToMerge) {
 	}
 }
 
-void Ply::outputToFile(int frameIndex, string directory) {
+void Ply::outputToFile(std::string fileName, string directory) {
 	stringstream outputFullPath;
-	outputFullPath << directory << "\\" << frameIndex << ".ply";
+	outputFullPath << directory << "\\" << fileName << ".ply";
 
 	ofstream out;
 	out.open(outputFullPath.str(), ios::out);
