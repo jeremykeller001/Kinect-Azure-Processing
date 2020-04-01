@@ -1,12 +1,6 @@
 #include "PclUtils.h"
 #include <pcl/filters/radius_outlier_removal.h>
 #include <pcl/surface/reconstruction.h>
-#include <pcl/point_types.h>
-#include <pcl/kdtree/kdtree_flann.h>
-#include <pcl/features/normal_3d.h>
-#include <pcl/surface/gp3.h>
-#include <pcl/io/vtk_io.h>
-#include <pcl/io/pcd_io.h>
 
 void PclUtils::outputToFile(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, std::string fileName) {
 	pcl::PCDWriter writer;
@@ -17,9 +11,8 @@ void PclUtils::outputToFile(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, std::stri
 pcl::PointCloud<pcl::PointXYZ>::Ptr PclUtils::convertPlyToPointCloud(Ply pointCloud) {
 	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
 
-	for (int i = 0; i < pointCloud.getPointCount(); i++) {
-		Eigen::RowVector3d point = pointCloud.getPoints().at(i);
-		cloud->push_back(pcl::PointXYZ(point(0), point(1), point(2)));
+	for (Eigen::RowVector3d point : pointCloud.getPoints()) {
+		cloud->points.push_back({ (float) point(0), (float) point(1), (float) point(2) });
 	}
 
 	std::cerr << "Completed pcd conversion" << std::endl;

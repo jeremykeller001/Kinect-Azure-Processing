@@ -4,9 +4,11 @@
 #include <pcl/io/vtk_io.h>
 #include <pcl/io/obj_io.h>
 #include <pcl/point_types.h>
+#include <pcl/filters/radius_outlier_removal.h>
 #include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/kdtree/kdtree_flann.h>
 #include <pcl/surface/mls.h>
+#include <pcl/surface/reconstruction.h>
 #include <pcl/features/normal_3d.h>
 #include <pcl/surface/gp3.h>
 #include <string>
