@@ -180,8 +180,11 @@ Ply KinectAzureUtils::generatePointCloud(KinectAzureUtils::FrameInfo frameInfo, 
 	return generatePly(frameInfo, xyTable);
 }
 
-void KinectAzureUtils::outputPointCloudGroup(std::vector<Ply> plys, uint64_t groupCount,
-	std::unordered_map<std::string, Eigen::Matrix4Xd> transformations, std::string outputPath, std::vector<Eigen::RowVector3d> jointPositions) {
+void KinectAzureUtils::outputPointCloudGroup(std::vector<Ply> plys, uint64_t groupCount, std::unordered_map<std::string, Eigen::Matrix4Xd> transformations, 
+	std::string outputPath, std::vector<Eigen::RowVector3d> jointPositions, std::string fileIndexString) {
+
+	std::stringstream outputFileName;
+	outputFileName << "Group" << groupCount << "_";
 
 	// Apply transformations to move all point clouds into master coordinate system
 	Ply combinedPly = MatrixUtils::applyTransforms(plys, transformations);
@@ -220,7 +223,8 @@ void KinectAzureUtils::outputPointCloudGroup(std::vector<Ply> plys, uint64_t gro
 		// Only if points exist in the cloud
 		//
 		if (combinedFilteredPly.getPointCount() > 0) {
-			combinedFilteredPly.outputToFile(groupCount, outputPath);
+			outputFileName << "f" << fileIndexString;
+			combinedFilteredPly.outputToFile(outputFileName.str(), outputPath);
 		}
 		else {
 			std::cerr << "Warning: combined filtered point cloud in group " << groupCount << " had all of its points filtered out. This may be a potential bounding box error." << std::endl;
@@ -228,7 +232,8 @@ void KinectAzureUtils::outputPointCloudGroup(std::vector<Ply> plys, uint64_t gro
 	}
 	else {
 		// If there is no joint tracking, just output the raw point cloud data
-		combinedPly.outputToFile(groupCount, outputPath);
+		outputFileName << "a" << fileIndexString;
+		combinedPly.outputToFile(outputFileName.str(), outputPath);
 	}
 
 }
@@ -344,6 +349,17 @@ void KinectAzureUtils::closeFiles(int fileCount, KinectAzureUtils::recording_t**
 	free(files);
 }
 
+static std::string getFileIndexString(std::map<std::string, uint64_t> fileIndexCounter) {
+	// Generate string in the form "-MasterCount-Sub1Count-Sub2Count..."
+	// Files are sorted in map in alphabetical order
+	std::stringstream ss;
+	for (auto it = fileIndexCounter.begin(); it != fileIndexCounter.end(); it++) {
+		ss << "-" << it->second;
+	}
+
+	return ss.str();
+}
+
 int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::string transformFilePath) {
 	// Grab filenames to read in
 	std::vector<std::string> mkvFiles = IOUtils::obtainMkvFilesFromDirectory(dirPath);
@@ -372,6 +388,12 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 
 	k4a_result_t result = K4A_RESULT_SUCCEEDED;
 
+	// Track frame indices 
+	std::map<std::string, uint64_t> fileIndexCounter;
+	for (int i = 0; i < fileCount; i++) {
+		fileIndexCounter.insert({mkvFiles.at(i), 0});
+	}
+
 	// Calibration variables
 	uint64_t previousTimestamp = (uint64_t)0;
 	int discardFrameEnd = fileCount * 15;
@@ -399,12 +421,20 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 	// Get frames in order
 	for (int frame = 0; frame < 1000000; frame++)
 	{
+		// First check to see if master frame has not been found for a consecutive number of frames
 		if (missingMasterCount >= endThreshold) {
+			// If so, stop processing and exit
 			frame = 1000000;
 			break;
 		}
-		KinectAzureUtils::FrameInfo frameInfo = getNextFrame(fileCount, files);
 
+		// Grab next frame
+		KinectAzureUtils::FrameInfo frameInfo = getNextFrame(fileCount, files);
+		
+		// Increment the frame's counter
+		fileIndexCounter[frameInfo.file->filename] = fileIndexCounter[frameInfo.file->filename]++;
+
+		// Get the timestamp from the frame
 		uint64_t timestamp = (uint64_t)frameInfo.timestamp - previousTimestamp;
 
 		if (frame < discardFrameEnd) {
@@ -424,13 +454,6 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 			}
 		}
 		else if (frame > orderingFrameEnd) {
-			// Print frame info
-			if (groupCount != previousGroupCount) {
-				previousGroupCount = groupCount;
-				std::cout << "Processing Group " << groupCount << std::endl;
-			}
-			print_capture_info(frameInfo.file);
-
 			// Group frames together
 			uint64_t groupTimestampDiff = frameInfo.timestamp - startGroupTimestamp;
 			if (startGroupTimestamp == 0) {
@@ -438,7 +461,7 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 				// Continue until we get to the starting file
 				if (std::string(frameInfo.file->filename).compare(startFileName) == 0) {
 					startGroupTimestamp = frameInfo.timestamp;
-					groupFrames.push_back(generatePointCloud(frameInfo, calibrations));
+					//groupFrames.push_back(generatePointCloud(frameInfo, calibrations));
 				}
 			}
 			else if (groupTimestampDiff > maxTimestampDiff) {
@@ -457,7 +480,15 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 					// Only process group if it contains master frame and body tracking (only if tracker capture exists)
 					if (containsMaster && (!trackerCaptureFound || jointsObtained)) {
 						missingMasterCount = 0;
-						outputPointCloudGroup(groupFrames, groupCount, transformations, dirPath, sub2Joints);
+
+						// Decrement frame count for the current frame, this will not be processed and outputted
+						fileIndexCounter[frameInfo.file->filename] = fileIndexCounter[frameInfo.file->filename]--;
+
+						// Output combined point cloud
+						outputPointCloudGroup(groupFrames, groupCount, transformations, dirPath, sub2Joints, getFileIndexString(fileIndexCounter));
+
+						// Re-increment frame count since it will be accurate for the next group processing
+						fileIndexCounter[frameInfo.file->filename] = fileIndexCounter[frameInfo.file->filename]++;
 					}
 					else if (!containsMaster) {
 						missingMasterCount++;
@@ -467,12 +498,18 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 					}
 				}
 
+				// Print frame info for next group
+				groupCount++;
+				if (groupCount != previousGroupCount) {
+					previousGroupCount = groupCount;
+					std::cout << std::endl << std::endl << "Processing Group " << groupCount << std::endl;
+					print_capture_info(frameInfo.file);
+				}
+
 				// Restart group
-				std::cout << std::endl << std::endl;
 				jointsObtained = false;
 				groupFrames.clear();
 				groupFrames.shrink_to_fit();
-				groupCount++;
 				startGroupTimestamp = frameInfo.timestamp;
 				sub2Joints.clear();
 
@@ -485,6 +522,8 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 				}
 			}
 			else {
+				print_capture_info(frameInfo.file);
+
 				// Add current frame to group
 				groupFrames.push_back(generatePointCloud(frameInfo, calibrations));
 
