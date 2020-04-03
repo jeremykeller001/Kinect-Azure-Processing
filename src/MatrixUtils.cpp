@@ -32,6 +32,7 @@ Ply MatrixUtils::applySingleTransform(Ply pointCloud, Eigen::Matrix4Xd transform
 	}
 
 	// multiply each coordinate by the transform
+	// TODO: Improve efficiency by using iterator
 	for (int i = 0; i < coordinates4.size(); i++) {
 		coordinates4.at(i) = transform * coordinates4.at(i);
 	}
@@ -46,28 +47,34 @@ Ply MatrixUtils::applySingleTransform(Ply pointCloud, Eigen::Matrix4Xd transform
 	return pointCloud;
 }
 
-Ply MatrixUtils::applyTransforms(vector<Ply> pointClouds, unordered_map<string, Eigen::Matrix4Xd> transformations) {
+vector<Ply> MatrixUtils::applyTransforms(vector<Ply> pointClouds, unordered_map<string, Eigen::Matrix4Xd> transformations) {
 	// Match point clouds to transforms
 	// If a point cloud cannot be matched to a transform, assume it does not need to be transformed
 
-	// Initialize new point cloud
-	Ply combinedPc = Ply();
+	// Initialize a new point cloud vector
+	vector<Ply> transformedPlys;
 
 	// Loop through point clouds
 	for (Ply pc : pointClouds) {
-		Ply pcToMerge = pc;
+		Ply transformedPc = Ply();
 		for (auto it = transformations.begin(); it != transformations.end(); it++) {
 			// For each pc, loop through transform and find matches
 			if (IOUtils::endsWith(pc.getFileName(), it->first)) {
-				pcToMerge = applySingleTransform(pc, it->second);
+				transformedPc = applySingleTransform(pc, it->second);
 				break;
 			}
 		}
 
-		combinedPc.merge(pcToMerge);
+		if (transformedPc.getPointCount() != 0) {
+			transformedPlys.push_back(transformedPc);
+		}
+		else {
+			// If no transform occured, just add the unmodified ply to the vector
+			transformedPlys.push_back(pc);
+		}
 	}
 
-	return combinedPc;
+	return transformedPlys;
 }
 
 vector<Eigen::RowVector3d> MatrixUtils::applyJointTrackingTransform(vector<Eigen::RowVector3d> jointPositions, Eigen::Matrix4Xd transform) {

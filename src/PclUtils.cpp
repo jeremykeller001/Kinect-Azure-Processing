@@ -1,6 +1,4 @@
 #include "PclUtils.h"
-#include <pcl/filters/radius_outlier_removal.h>
-#include <pcl/surface/reconstruction.h>
 
 void PclUtils::outputToFile(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, std::string fileName) {
 	pcl::PCDWriter writer;
@@ -27,6 +25,15 @@ pcl::PCLPointCloud2 PclUtils::convertPlyToPointCloud2(Ply pointCloud) {
 	return pc2;
 }
 
+Ply PclUtils::convertPcdToPly(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud) {
+	Ply outCloud;
+	for (pcl::PointXYZ point : cloud->points) {
+		outCloud.addPoint({ point.x, point.y, point.z });
+	}
+
+	return outCloud;
+}
+
 void PclUtils::applyNearestNeighborFilter(pcl::PointCloud<pcl::PointXYZ>::Ptr inCloud, pcl::PointCloud<pcl::PointXYZ>::Ptr outCloud) {
 	std::cerr << "Cloud before filtering: " << std::endl;
 	std::cerr << *inCloud << std::endl;
@@ -43,6 +50,13 @@ void PclUtils::applyNearestNeighborFilter(pcl::PointCloud<pcl::PointXYZ>::Ptr in
 	return;
 }
 
+void PclUtils::applyStatisticalOutlierFilter(Ply cloud, pcl::PointCloud<pcl::PointXYZ>::Ptr filteredCloud) {
+	pcl::PointCloud<pcl::PointXYZ>::Ptr pclCloud = PclUtils::convertPlyToPointCloud(cloud);
+
+	PclUtils::applyStatisticalOutlierFilter(pclCloud, filteredCloud);
+	delete& pclCloud;
+}
+
 void PclUtils::applyStatisticalOutlierFilter(pcl::PointCloud<pcl::PointXYZ>::Ptr inCloud, pcl::PointCloud<pcl::PointXYZ>::Ptr outCloud) {
 	std::cerr << "Cloud before filtering: " << std::endl;
 	std::cerr << *inCloud << std::endl;
@@ -50,21 +64,13 @@ void PclUtils::applyStatisticalOutlierFilter(pcl::PointCloud<pcl::PointXYZ>::Ptr
 	// Create the filtering object
 	pcl::StatisticalOutlierRemoval<pcl::PointXYZ> sor;
 	sor.setInputCloud(inCloud);
-	sor.setMeanK(500);
-	sor.setStddevMulThresh(0.75);
+	sor.setMeanK(50);
+	sor.setStddevMulThresh(2.0);
 	sor.filter(*outCloud);
 
 	std::cerr << "Cloud after filtering: " << std::endl;
 	std::cerr << *outCloud << std::endl;
-
-	pcl::PCDWriter writer;
-	writer.write<pcl::PointXYZ>("filtered_inliers_500_0.75.pcd", *outCloud, false);
-
-	sor.setNegative(true);
-	sor.filter(*outCloud);
-	writer.write<pcl::PointXYZ>("filtered_outliers_500_0.75.pcd", *outCloud, false);
 }
-
 
 void PclUtils::resample(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud) {
 	// Create a KD-Tree
@@ -105,7 +111,7 @@ void PclUtils::resample(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud) {
 	pcl::PolygonMesh triangles;
 
 	// Set the maximum distance between connected points (maximum edge length)
-	gp3.setSearchRadius(25);
+	gp3.setSearchRadius(30);
 
 	// Set typical values for the parameters
 	gp3.setMu(2.5);
@@ -124,7 +130,7 @@ void PclUtils::resample(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud) {
 	std::vector<int> parts = gp3.getPartIDs();
 	std::vector<int> states = gp3.getPointStates();
 
-	pcl::io::saveOBJFile("mesh_240.obj", triangles);
+	pcl::io::saveOBJFile("mesh.obj", triangles);
 
 	return;
 }

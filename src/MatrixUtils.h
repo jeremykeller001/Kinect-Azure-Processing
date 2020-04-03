@@ -6,6 +6,7 @@
 
 #include "IOUtils.h"
 #include "Ply.h"
+#include "PclUtils.h"
 
 #ifndef MATRIX_UTILS_H
 #define MATRIX_UTILS_H
@@ -21,7 +22,7 @@ private:
 	static Ply applySingleTransform(Ply pointCloud, Eigen::Matrix4Xd transform);
 
 public:
-	static Ply applyTransforms(std::vector<Ply> pointClouds, std::unordered_map<std::string, Eigen::Matrix4Xd> transformations);
+	static std::vector<Ply> applyTransforms(std::vector<Ply> pointClouds, std::unordered_map<std::string, Eigen::Matrix4Xd> transformations);
 	static std::vector<Eigen::RowVector3d> applyJointTrackingTransform(std::vector<Eigen::RowVector3d> jointPositions, Eigen::Matrix4Xd transform);
 };
 #endif MATRIX_UTILS_H

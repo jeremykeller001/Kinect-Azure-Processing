@@ -187,7 +187,7 @@ void KinectAzureUtils::outputPointCloudGroup(std::vector<Ply> plys, uint64_t gro
 	outputFileName << "Group" << groupCount << "_";
 
 	// Apply transformations to move all point clouds into master coordinate system
-	Ply combinedPly = MatrixUtils::applyTransforms(plys, transformations);
+	std::vector<Ply> transformedPlys = MatrixUtils::applyTransforms(plys, transformations);
 	
 	// Filter points if joint positions are given
 	if (jointPositions.size() > 0) {
@@ -196,49 +196,70 @@ void KinectAzureUtils::outputPointCloudGroup(std::vector<Ply> plys, uint64_t gro
 		//
 
 		// Grab transformation for Sub2 to apply to jointPositions
+		bool jointTransformFound = false;
 		Eigen::Matrix4Xd jointPositionTransformation;
 		for (auto it = transformations.begin(); it != transformations.end(); it++) {
 			// For each pc, loop through transform and find matches
 			if (it->first.compare("Sub2.mkv") == 0) {
 				jointPositionTransformation = it->second;
+				jointTransformFound = true;
+				break;
 			}
 		}
 
 		// Apply transform to joint locations
-		std::vector<Eigen::RowVector3d> jointPositionsTransformed = MatrixUtils::applyJointTrackingTransform(jointPositions, jointPositionTransformation);
-
-		// Create bounding box
-		BodyTrackingUtils::BoundingBox boundingBox = BodyTrackingUtils::createBoundingBox(jointPositionsTransformed);
-
-		// Filter out points from the combined Ply if they do not fit within the bounding box
-		Ply combinedFilteredPly;
-		for (Eigen::RowVector3d point : combinedPly.getPoints()) {
-			if (BodyTrackingUtils::withinBounds(point, boundingBox)) {
-				combinedFilteredPly.addPoint(point);
-			}
-		}
-
-		//
-		// Output to file
-		// Only if points exist in the cloud
-		//
-		if (combinedFilteredPly.getPointCount() > 0) {
-			outputFileName << "f" << fileIndexString;
-			combinedFilteredPly.outputToFile(outputFileName.str(), outputPath);
+		// Create Bounding box
+		BodyTrackingUtils::BoundingBox boundingBox;
+		if (jointTransformFound) {
+			std::vector<Eigen::RowVector3d> jointPositionsTransformed = MatrixUtils::applyJointTrackingTransform(jointPositions, jointPositionTransformation);
+			boundingBox = BodyTrackingUtils::createBoundingBox(jointPositionsTransformed);
 		}
 		else {
-			std::cerr << "Warning: combined filtered point cloud in group " << groupCount << " had all of its points filtered out. This may be a potential bounding box error." << std::endl;
+			boundingBox = BodyTrackingUtils::createBoundingBox(jointPositions);
 		}
+
+
+		// Apply bounds, convert to pcd file, and filter
+		outputFileName << "f" << fileIndexString << ".pcd";
+		pcl::PointCloud<pcl::PointXYZ>::Ptr pclCloudCombined(new pcl::PointCloud<pcl::PointXYZ>);
+		int index = 0;
+		for (Ply pc : transformedPlys) {
+			pcl::PointCloud<pcl::PointXYZ>::Ptr pclCloudSingle(new pcl::PointCloud<pcl::PointXYZ>);
+			for (Eigen::RowVector3d point : pc.getPoints()) {
+				if (BodyTrackingUtils::withinBounds(point, boundingBox)) {
+					pclCloudSingle->points.push_back({ (float)point(0), (float)point(1), (float)point(2) });
+				}
+			}
+
+			// Apply statistical outlier filter
+			pcl::PointCloud<pcl::PointXYZ>::Ptr filteredPc(new pcl::PointCloud<pcl::PointXYZ>);
+			PclUtils::applyStatisticalOutlierFilter(pclCloudSingle, filteredPc);
+			std::stringstream filteredFileName;
+			filteredFileName << "filteredPc_" << groupCount << "_" << index << ".pcd";
+			PclUtils::outputToFile(filteredPc, filteredFileName.str());
+			*pclCloudCombined += *filteredPc;
+			//delete(&pclCloudSingle);
+			index++;
+		}
+
+		PclUtils::outputToFile(pclCloudCombined, outputFileName.str());
+
+		// Mesh
+		PclUtils::resample(pclCloudCombined);
 	}
 	else {
-		// If there is no joint tracking, just output the raw point cloud data
+		// If there is no joint tracking, just merge and output the raw point cloud data
+		Ply combinedPly = Ply();
+		for (Ply pc : transformedPlys) {
+			combinedPly.merge(pc);
+		}
 		outputFileName << "a" << fileIndexString;
 		combinedPly.outputToFile(outputFileName.str(), outputPath);
 	}
 
 }
 
-bool KinectAzureUtils::openFiles(KinectAzureUtils::recording_t** filess, k4a_calibration_t** calibrationss, k4abt_tracker_t &tracker, std::vector<std::string> mkvFiles) {
+bool KinectAzureUtils::openFiles(KinectAzureUtils::recording_t** filess, k4a_calibration_t** calibrationss, k4abt_tracker_t &tracker, std::vector<std::string> mkvFiles, std::string btFileSuffix) {
 	if (mkvFiles.size() < 1) {
 		printf("At least one mkv video must be found for processing");
 		return false;
@@ -303,7 +324,7 @@ bool KinectAzureUtils::openFiles(KinectAzureUtils::recording_t** filess, k4a_cal
 		}
 
 		// Set up body tracking if file is sub2
-		if (IOUtils::endsWith(filename, "Sub2.mkv")) {
+		if (IOUtils::endsWith(filename, btFileSuffix)) {
 			k4abt_tracker_configuration_t tracker_config = K4ABT_TRACKER_CONFIG_DEFAULT;
 			result = k4abt_tracker_create(&calibrations[i], tracker_config, &tracker);
 			if (result != K4A_RESULT_SUCCEEDED)
@@ -365,7 +386,8 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 	std::vector<std::string> mkvFiles = IOUtils::obtainMkvFilesFromDirectory(dirPath);
 	std::unordered_map<std::string, Eigen::Matrix4Xd> transformations = IOUtils::readTransformationFile(transformFilePath);
 	int fileCount = mkvFiles.size();
-
+	std::string btFileSuffix = "Master.mkv";
+	std::string masterFileSuffix = "Master.mkv";
 
 	KinectAzureUtils::recording_t* files = (KinectAzureUtils::recording_t*)malloc(sizeof(KinectAzureUtils::recording_t) * fileCount);
 	k4a_calibration_t* calibrations = (k4a_calibration_t*)malloc(sizeof(k4a_calibration_t) * fileCount);
@@ -380,7 +402,7 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 	k4abt_tracker_t tracker = NULL;
 
 	// Open files
-	bool openRecordingSuccess = openFiles(&files, &calibrations, tracker, mkvFiles);
+	bool openRecordingSuccess = openFiles(&files, &calibrations, tracker, mkvFiles, btFileSuffix);
 	if (!openRecordingSuccess) {
 		closeFiles(fileCount, &files);
 		return 1;
@@ -471,7 +493,7 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 					// Check whether group contains master capture
 					bool containsMaster = false;
 					for (Ply& groupFrame : groupFrames) {
-						if (IOUtils::endsWith(groupFrame.getFileName(), "Master.mkv")) {
+						if (IOUtils::endsWith(groupFrame.getFileName(), masterFileSuffix)) {
 							containsMaster = true;
 							break;
 						}
@@ -517,7 +539,7 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 				groupFrames.push_back(generatePointCloud(frameInfo, calibrations));
 
 				// If capture is Sub2, process joint tracking data
-				if (trackerCaptureFound && IOUtils::endsWith(frameInfo.file->filename, "Sub2.mkv")) {
+				if (trackerCaptureFound && IOUtils::endsWith(frameInfo.file->filename, btFileSuffix)) {
 					jointsObtained = BodyTrackingUtils::predictJoints(groupCount, tracker, frameInfo.file->capture, &sub2Joints);
 				}
 			}
@@ -528,7 +550,7 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 				groupFrames.push_back(generatePointCloud(frameInfo, calibrations));
 
 				// If capture is Sub2, process joint tracking data
-				if (trackerCaptureFound && IOUtils::endsWith(frameInfo.file->filename, "Sub2.mkv")) {
+				if (trackerCaptureFound && IOUtils::endsWith(frameInfo.file->filename, btFileSuffix)) {
 					jointsObtained = BodyTrackingUtils::predictJoints(groupCount, tracker, frameInfo.file->capture, &sub2Joints);
 				}
 			}

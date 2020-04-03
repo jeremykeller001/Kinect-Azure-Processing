@@ -90,7 +90,7 @@ private:
 	static void outputPointCloudGroup(std::vector<Ply> plys, uint64_t groupCount, std::unordered_map<std::string, Eigen::Matrix4Xd> transformations, 
 		std::string outputPath, std::vector<Eigen::RowVector3d> jointPositions, std::string fileIndexString);
 
-	static bool openFiles(KinectAzureUtils::recording_t** files, k4a_calibration_t** calibrations, k4abt_tracker_t& tracker, std::vector<std::string> mkvFiles);
+	static bool openFiles(KinectAzureUtils::recording_t** files, k4a_calibration_t** calibrations, k4abt_tracker_t& tracker, std::vector<std::string> mkvFiles, std::string btFileSuffix);
 
 	static void closeFiles(int fileCount, KinectAzureUtils::recording_t** files);
 

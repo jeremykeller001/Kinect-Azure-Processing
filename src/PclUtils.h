@@ -23,8 +23,11 @@ class PclUtils
 public:
 	static pcl::PointCloud<pcl::PointXYZ>::Ptr convertPlyToPointCloud(Ply pointCloud);
 	static pcl::PCLPointCloud2 convertPlyToPointCloud2(Ply pointCloud);
+	static Ply convertPcdToPly(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
 
 	static void applyNearestNeighborFilter(pcl::PointCloud<pcl::PointXYZ>::Ptr inCloud, pcl::PointCloud<pcl::PointXYZ>::Ptr outCloud);
+
+	static void applyStatisticalOutlierFilter(Ply inCloud, pcl::PointCloud<pcl::PointXYZ>::Ptr filteredCloud);
 
 	static void applyStatisticalOutlierFilter(pcl::PointCloud<pcl::PointXYZ>::Ptr inCloud, pcl::PointCloud<pcl::PointXYZ>::Ptr outCloud);
 
