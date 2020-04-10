@@ -20,20 +20,22 @@ int main(int argc, char** argv) {
 	//std::string mkvDirectory = "C:\\Users\\Jeremy\\Desktop\\DU COB\\2CameraCapture\\2CameraCapture";
 	//std::string transformFilePath = "C:\\Users\\Jeremy\\Desktop\\DU COB\\2CameraCapture\\2CameraCapture\\CalMar5.txt";
 
-	/*
 	if (argc < 3) {
 		cerr << "Usage: project.exe transformFile recordingDirectory" << endl;
 		return -1;
 	}
 	
-
 	string transformFilePath = string(argv[1]);
 	string mkvDirectory = string(argv[2]);
 	return KinectAzureUtils::outputRecordingsToPlyFiles(mkvDirectory, transformFilePath);
-	*/
 
+	//
+	// Debug Only - For running PCL methods on a single point cloud file
+	//
 	// Read in Ply
-	ifstream ply("C:\\Users\\Jeremy\\Desktop\\DU COB\\ForJeremy\\ForJeremy\\Sample Output\\240.ply");
+	/*
+	//ifstream ply("C:\\Users\\Jeremy\\git\\Kinect-Azure-Processor\\out\\build\\x64-Debug\\2cam.ply");
+	ifstream ply("C:\\Users\\Jeremy\\\Desktop\\DU COB\\MkvTestFiles\\Group150filtered.ply");
 	string str;
 
 	bool proceed = false;
@@ -69,17 +71,8 @@ int main(int argc, char** argv) {
 	// Convert to pcl::PointCloud
 	pcl::PointCloud<pcl::PointXYZ>::Ptr pclPointCloud = PclUtils::convertPlyToPointCloud(pointCloud);
 
-	// apply Nearest Neighbor Filter
-	pcl::PointCloud<pcl::PointXYZ>::Ptr filteredPc(new pcl::PointCloud<pcl::PointXYZ>);
-	//PclUtils::applyStatisticalOutlierFilter(pclPointCloud, filteredPc);
-	PclUtils::applyNearestNeighborFilter(pclPointCloud, filteredPc);
-	//PclUtils::outputToFile(filteredPc, "filteredPc.pcd");
-	
-	// Resample
-	PclUtils::resample(filteredPc);
-	//PclUtils::outputToFile(filteredPc, "filtered_resampled_Pc.pcd");
-
-	// Generate Mesh
+	PclUtils::filterAndMesh(pclPointCloud, "poissonMesh4Cam");
 
 	return 0;
+	*/
 }

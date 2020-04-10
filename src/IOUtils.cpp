@@ -63,7 +63,7 @@ unordered_map<string, Eigen::Matrix4Xd> IOUtils::readTransformationFile(string f
 				fileSuffix = line;
 			}
 			else {
-				// throw exception
+				throw "Error obtaining file name suffix in transformation matrix file. File name suffix must be specified in the line following the \"###\" regex.";
 			}
 
 			// 4x4 transform over the next 4 lines
@@ -79,7 +79,8 @@ unordered_map<string, Eigen::Matrix4Xd> IOUtils::readTransformationFile(string f
 					}
 				}
 				else {
-					// TODO: If line cannot be read, there is an issue with the transform file, throw exception
+					// If line cannot be read, there is an issue with the transform file, throw exception
+					throw "Error reading transformation matrix line.";
 				}
 			}
 
@@ -88,4 +89,26 @@ unordered_map<string, Eigen::Matrix4Xd> IOUtils::readTransformationFile(string f
 	}
 
 	return fileTransformMap;
+}
+
+std::string IOUtils::obtainBodyTrackingFileSuffix(std::string fileName) {
+	string startChars = "///";
+	ifstream infile(fileName);
+
+	string fileNameSuffix = "";
+	string line;
+	while (getline(infile, line)) {
+		if (line.compare(startChars) == 0) {
+			// Assume next line is the body tracking file name
+			if (getline(infile, fileNameSuffix)) {
+				// Body tracking file suffix is found, no need to continue processing
+				break;
+			}
+			else {
+				throw "Error obtaining body tracking file suffix. Body tracking file name suffix must be specified in the line following the \"///\" regex.";
+			}
+		}
+	}
+
+	return fileNameSuffix;
 }

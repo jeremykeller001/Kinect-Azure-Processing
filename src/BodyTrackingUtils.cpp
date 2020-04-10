@@ -114,7 +114,7 @@ BodyTrackingUtils::BoundingBox BodyTrackingUtils::createBoundingBox(vector<Eigen
 	// Length in mm to allow deviations from bounds 
 	// Bounds are calculated at joint angle positions, not outer hull locations, 
 	//	so we need to modify it a bit to capture the outside of the body
-	double boundsMod = 300;
+	double boundsMod = 150;
 	bounds.xMin -= boundsMod;
 	bounds.xMax += boundsMod;
 	bounds.yMin -= boundsMod;

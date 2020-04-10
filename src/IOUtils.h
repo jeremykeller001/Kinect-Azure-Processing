@@ -22,11 +22,10 @@ private:
 	static Eigen::RowVector4d readTransformLine(std::string line);
 
 public:
-	static bool endsWith(std::string const fileName, std::string const fileExtension);
+	static bool endsWith(std::string const fullString, std::string const ending);
 	static std::vector<std::string> obtainMkvFilesFromDirectory(std::string dirPath);
 	static std::unordered_map<std::string, Eigen::Matrix4Xd> readTransformationFile(std::string fileName);
-
-	// Utils
+	static std::string obtainBodyTrackingFileSuffix(std::string fileName);
 };
 #endif 
 

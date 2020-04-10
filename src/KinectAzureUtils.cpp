@@ -181,7 +181,7 @@ Ply KinectAzureUtils::generatePointCloud(KinectAzureUtils::FrameInfo frameInfo, 
 }
 
 void KinectAzureUtils::outputPointCloudGroup(std::vector<Ply> plys, uint64_t groupCount, std::unordered_map<std::string, Eigen::Matrix4Xd> transformations, 
-	std::string outputPath, std::vector<Eigen::RowVector3d> jointPositions, std::string fileIndexString) {
+	std::string outputPath, std::vector<Eigen::RowVector3d> jointPositions, std::string fileIndexString, std::string bodyTrackingFileSuffix) {
 
 	std::stringstream outputFileName;
 	outputFileName << "Group" << groupCount << "_";
@@ -195,12 +195,12 @@ void KinectAzureUtils::outputPointCloudGroup(std::vector<Ply> plys, uint64_t gro
 		// Filter out points not in bounding box;
 		//
 
-		// Grab transformation for Sub2 to apply to jointPositions
+		// Grab transformation for body tracking file to apply to jointPositions
 		bool jointTransformFound = false;
 		Eigen::Matrix4Xd jointPositionTransformation;
 		for (auto it = transformations.begin(); it != transformations.end(); it++) {
 			// For each pc, loop through transform and find matches
-			if (it->first.compare("Sub2.mkv") == 0) {
+			if (it->first.compare(bodyTrackingFileSuffix) == 0) {
 				jointPositionTransformation = it->second;
 				jointTransformFound = true;
 				break;
@@ -220,7 +220,7 @@ void KinectAzureUtils::outputPointCloudGroup(std::vector<Ply> plys, uint64_t gro
 
 
 		// Apply bounds, convert to pcd file, and filter
-		outputFileName << "f" << fileIndexString << ".pcd";
+		outputFileName << "f" << fileIndexString;
 		pcl::PointCloud<pcl::PointXYZ>::Ptr pclCloudCombined(new pcl::PointCloud<pcl::PointXYZ>);
 		int index = 0;
 		for (Ply pc : transformedPlys) {
@@ -234,18 +234,24 @@ void KinectAzureUtils::outputPointCloudGroup(std::vector<Ply> plys, uint64_t gro
 			// Apply statistical outlier filter
 			pcl::PointCloud<pcl::PointXYZ>::Ptr filteredPc(new pcl::PointCloud<pcl::PointXYZ>);
 			PclUtils::applyStatisticalOutlierFilter(pclCloudSingle, filteredPc);
-			std::stringstream filteredFileName;
-			filteredFileName << "filteredPc_" << groupCount << "_" << index << ".pcd";
-			PclUtils::outputToFile(filteredPc, filteredFileName.str());
+			//std::stringstream filteredFileName;
+			//filteredFileName << "filteredPc_" << groupCount << "_" << index;
+			//PclUtils::outputToFile(filteredPc, filteredFileName.str());
 			*pclCloudCombined += *filteredPc;
 			//delete(&pclCloudSingle);
 			index++;
 		}
 
-		PclUtils::outputToFile(pclCloudCombined, outputFileName.str());
+		std::string pcFileName = std::string(outputFileName.str());
+		pcFileName += ".pcd";
+		std::string fullFilePath = std::string(outputPath);
+		fullFilePath += "\\";
+		fullFilePath += pcFileName;
+		PclUtils::outputToFile(pclCloudCombined, fullFilePath);
 
 		// Mesh
-		PclUtils::resample(pclCloudCombined);
+		// Uncomment this for mesh outputs
+		// PclUtils::filterAndMesh(pclCloudCombined, outputFileName.str());
 	}
 	else {
 		// If there is no joint tracking, just merge and output the raw point cloud data
@@ -323,8 +329,8 @@ bool KinectAzureUtils::openFiles(KinectAzureUtils::recording_t** filess, k4a_cal
 			return false;
 		}
 
-		// Set up body tracking if file is sub2
-		if (IOUtils::endsWith(filename, btFileSuffix)) {
+		// Set up body tracking if body tracking file suffix is defined and the capture file names ends with that suffix
+		if (btFileSuffix.compare("") != 0 && IOUtils::endsWith(filename, btFileSuffix)) {
 			k4abt_tracker_configuration_t tracker_config = K4ABT_TRACKER_CONFIG_DEFAULT;
 			result = k4abt_tracker_create(&calibrations[i], tracker_config, &tracker);
 			if (result != K4A_RESULT_SUCCEEDED)
@@ -352,7 +358,7 @@ bool KinectAzureUtils::openFiles(KinectAzureUtils::recording_t** filess, k4a_cal
 	}
 
 	if (tracker == NULL) {
-		printf("Warning: Sub2 capture for body tracking was not found. Body tracking will not be processed.\n");
+		printf("Warning: Capture for body tracking was not found. Body tracking will not be processed.\n");
 	}
 
 	return result == K4A_RESULT_SUCCEEDED;
@@ -385,8 +391,9 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 	// Grab filenames to read in
 	std::vector<std::string> mkvFiles = IOUtils::obtainMkvFilesFromDirectory(dirPath);
 	std::unordered_map<std::string, Eigen::Matrix4Xd> transformations = IOUtils::readTransformationFile(transformFilePath);
+	std::string btFileSuffix = IOUtils::obtainBodyTrackingFileSuffix(transformFilePath);
+
 	int fileCount = mkvFiles.size();
-	std::string btFileSuffix = "Master.mkv";
 	std::string masterFileSuffix = "Master.mkv";
 
 	KinectAzureUtils::recording_t* files = (KinectAzureUtils::recording_t*)malloc(sizeof(KinectAzureUtils::recording_t) * fileCount);
@@ -507,7 +514,7 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 						fileIndexCounter[frameInfo.file->filename] = fileIndexCounter[frameInfo.file->filename]--;
 
 						// Output combined point cloud
-						outputPointCloudGroup(groupFrames, groupCount, transformations, dirPath, sub2Joints, getFileIndexString(fileIndexCounter));
+						outputPointCloudGroup(groupFrames, groupCount, transformations, dirPath, sub2Joints, getFileIndexString(fileIndexCounter), btFileSuffix);
 
 						// Re-increment frame count since it will be accurate for the next group processing
 						fileIndexCounter[frameInfo.file->filename] = fileIndexCounter[frameInfo.file->filename]++;
@@ -538,7 +545,7 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 				// Add current frame to group
 				groupFrames.push_back(generatePointCloud(frameInfo, calibrations));
 
-				// If capture is Sub2, process joint tracking data
+				// If capture ends with body tracking suffix, also process joint tracking data
 				if (trackerCaptureFound && IOUtils::endsWith(frameInfo.file->filename, btFileSuffix)) {
 					jointsObtained = BodyTrackingUtils::predictJoints(groupCount, tracker, frameInfo.file->capture, &sub2Joints);
 				}
