@@ -576,7 +576,17 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 		}
 	}
 
-	closeFiles(fileCount, &files);
+	//closeFiles(fileCount, &files);
+	for (size_t i = 0; i < fileCount; i++)
+	{
+		if (files[i].handle != NULL)
+		{
+			k4a_playback_close(files[i].handle);
+			files[i].handle = NULL;
+		}
+	}
+	free(files);
+
 	return result == K4A_RESULT_SUCCEEDED ? 0 : 1;
 }
 
