@@ -54,7 +54,6 @@ endif()
 
 set(KINECT_SDK_INCLUDE "C:/Program Files/Azure Kinect SDK v1.3.0/sdk/include/")
 set(KINECT_BT_INCLUDE "C:/Program Files/Azure Kinect Body Tracking SDK/sdk/include")
-#set(EIGEN_INCLUDE "F:/Software/eigen-3.3.7/")
 include_directories( ${KINECT_SDK_INCLUDE} ${KINECT_BT_INCLUDE})
 
 set(KINECT_SDK_LIB64 "C:/Program Files/Azure Kinect SDK v1.3.0/sdk/windows-desktop/amd64/release/lib")

@@ -92,9 +92,6 @@ private:
 
 	static bool openFiles(KinectAzureUtils::recording_t** files, k4a_calibration_t** calibrations, k4abt_tracker_t& tracker, std::vector<std::string> mkvFiles, std::string btFileSuffix);
 
-	static void closeFiles(int fileCount, KinectAzureUtils::recording_t** files);
-
-
 public:
 	static int outputRecordingsToPlyFiles(std::string dirPath, std::string transformPath);
 };

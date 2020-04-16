@@ -364,18 +364,6 @@ bool KinectAzureUtils::openFiles(KinectAzureUtils::recording_t** filess, k4a_cal
 	return result == K4A_RESULT_SUCCEEDED;
 }
 
-void KinectAzureUtils::closeFiles(int fileCount, KinectAzureUtils::recording_t** files) {
-	for (size_t i = 0; i < fileCount; i++)
-	{
-		if (files[i]->handle != NULL)
-		{
-			k4a_playback_close(files[i]->handle);
-			files[i]->handle = NULL;
-		}
-	}
-	free(files);
-}
-
 static std::string getFileIndexString(std::map<std::string, uint64_t> fileIndexCounter) {
 	// Generate string in the form "-MasterCount-Sub1Count-Sub2Count..."
 	// Files are sorted in map in alphabetical order
@@ -411,7 +399,6 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 	// Open files
 	bool openRecordingSuccess = openFiles(&files, &calibrations, tracker, mkvFiles, btFileSuffix);
 	if (!openRecordingSuccess) {
-		closeFiles(fileCount, &files);
 		return 1;
 	}
 
@@ -445,13 +432,13 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 
 	// Loop variables
 	int endThreshold = 5; // Number of consecutive frames without a master capture before we decide to end the processing
-	int missingMasterCount = 0; // Track the number of consecutive frames without a master capture
+	int missingFrameCount = 0; // Track the number of consecutive frames without all the captures
 
 	// Get frames in order
 	for (int frame = 0; frame < 1000000; frame++)
 	{
 		// First check to see if master frame has not been found for a consecutive number of frames
-		if (missingMasterCount >= endThreshold) {
+		if (missingFrameCount >= endThreshold) {
 			// If so, stop processing and exit
 			frame = 1000000;
 			break;
@@ -497,18 +484,15 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 				// Process previous group
 				// Don't process first group
 				if (groupCount != 0) {
-					// Check whether group contains master capture
-					bool containsMaster = false;
 					for (Ply& groupFrame : groupFrames) {
 						if (IOUtils::endsWith(groupFrame.getFileName(), masterFileSuffix)) {
-							containsMaster = true;
 							break;
 						}
 					}
 
-					// Only process group if it contains master frame and body tracking (only if tracker capture exists)
-					if (containsMaster && (!trackerCaptureFound || jointsObtained)) {
-						missingMasterCount = 0;
+					// Only process group if it contains all frames along with body tracking* (only if tracker capture exists)
+					if (groupFrames.size() == fileCount && (!trackerCaptureFound || jointsObtained) && groupCount > 30) {
+						missingFrameCount = 0;
 
 						// Decrement frame count for the current frame, this will not be processed and outputted
 						fileIndexCounter[frameInfo.file->filename] = fileIndexCounter[frameInfo.file->filename]--;
@@ -519,8 +503,9 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 						// Re-increment frame count since it will be accurate for the next group processing
 						fileIndexCounter[frameInfo.file->filename] = fileIndexCounter[frameInfo.file->filename]++;
 					}
-					else if (!containsMaster) {
-						missingMasterCount++;
+					else if (groupFrames.size() < fileCount) {
+						missingFrameCount++;
+						std::cerr << "Frames missing for group " << groupCount << ". Skipping." << std::endl;
 					}
 					else if (trackerCaptureFound && !jointsObtained) {
 						std::cerr << "Body tracking missing for group " << groupCount << ". Skipping." << std::endl;
@@ -576,7 +561,6 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 		}
 	}
 
-	//closeFiles(fileCount, &files);
 	for (size_t i = 0; i < fileCount; i++)
 	{
 		if (files[i].handle != NULL)
