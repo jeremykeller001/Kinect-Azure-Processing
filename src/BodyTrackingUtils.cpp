@@ -10,8 +10,10 @@
 #include "BodyTrackingUtils.h"
 
 using namespace std;
+using boost::property_tree::ptree;
 
-bool BodyTrackingUtils::predictJoints(int frameCount, k4abt_tracker_t tracker, k4a_capture_t capture_handle, vector<Eigen::RowVector3d>* jointPositions) {
+// TODO: Modify this method to output the joints to a ptree json object
+bool BodyTrackingUtils::predictJoints(ptree framesJson, int frameCount, k4abt_tracker_t tracker, k4a_capture_t capture_handle, vector<Eigen::RowVector3d>* jointPositions) {
 	k4a_wait_result_t queue_capture_result = k4abt_tracker_enqueue_capture(tracker, capture_handle, K4A_WAIT_INFINITE);
 	if (queue_capture_result != K4A_WAIT_RESULT_SUCCEEDED)
 	{

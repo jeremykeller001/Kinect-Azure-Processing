@@ -9,19 +9,24 @@
 
 #pragma once
 
-#include <Eigen/Dense>
-#include <pcl/io/pcd_io.h>
-#include <pcl/point_types.h>
 #include <string>
+#include <vector>
+
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/json_parser.hpp>
+
+#include <Eigen/Dense>
+
 #include <k4a/k4a.h>
 #include <k4arecord/playback.h>
 #include <k4abt.h>
-#include <vector>
+
+#include <pcl/io/pcd_io.h>
+#include <pcl/point_types.h>
 
 #include "BodyTrackingHelpers.h"
 #include "KinectAzureUtils.h"
 #include "MatrixUtils.h"
-
 
 #ifndef BODY_TRACKING_UTILS_H
 #define BODY_TRACKING_UTILS_H
@@ -40,7 +45,7 @@ public:
 		double zMax;
 	};
 
-	static bool predictJoints(int frameCount, k4abt_tracker_t tracker, k4a_capture_t capture_handle, std::vector<Eigen::RowVector3d>* jointPositions);
+	static bool predictJoints(boost::property_tree::ptree jsonFrames, int frameCount, k4abt_tracker_t tracker, k4a_capture_t capture_handle, std::vector<Eigen::RowVector3d>* jointPositions);
 
 	//static void outputJoints(int frameCount, k4a_float3_t jointPositions);
 

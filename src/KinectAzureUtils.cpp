@@ -10,6 +10,11 @@
 #include "KinectAzureUtils.h"
 #include "BodyTrackingUtils.h"
 
+
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/json_parser.hpp>
+using boost::property_tree::ptree;
+
 // https://github.com/microsoft/Azure-Kinect-Sensor-SDK/blob/develop/examples/fastpointcloud/main.cpp
 void KinectAzureUtils::createXYTable(const k4a_calibration_t* calibration, k4a_image_t xy_table) {
 	k4a_float2_t* table_data = (k4a_float2_t*)(void*)k4a_image_get_buffer(xy_table);
@@ -429,6 +434,7 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 	bool trackerCaptureFound = (tracker != NULL);
 	bool jointsObtained = false;
 	std::vector<Eigen::RowVector3d> sub2Joints;
+	ptree jointOutputJson;
 
 	// Loop variables
 	int endThreshold = 5; // Number of consecutive frames without a master capture before we decide to end the processing
@@ -532,7 +538,7 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 
 				// If capture ends with body tracking suffix, also process joint tracking data
 				if (trackerCaptureFound && IOUtils::endsWith(frameInfo.file->filename, btFileSuffix)) {
-					jointsObtained = BodyTrackingUtils::predictJoints(groupCount, tracker, frameInfo.file->capture, &sub2Joints);
+					jointsObtained = BodyTrackingUtils::predictJoints(jointOutputJson, groupCount, tracker, frameInfo.file->capture, &sub2Joints);
 				}
 			}
 			else {
@@ -543,7 +549,7 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 
 				// If capture is Sub2, process joint tracking data
 				if (trackerCaptureFound && IOUtils::endsWith(frameInfo.file->filename, btFileSuffix)) {
-					jointsObtained = BodyTrackingUtils::predictJoints(groupCount, tracker, frameInfo.file->capture, &sub2Joints);
+					jointsObtained = BodyTrackingUtils::predictJoints(jointOutputJson, groupCount, tracker, frameInfo.file->capture, &sub2Joints);
 				}
 			}
 		}
