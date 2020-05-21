@@ -119,8 +119,8 @@ BodyTrackingUtils::BoundingBox BodyTrackingUtils::createBoundingBox(vector<Eigen
 	bounds.xMax += boundsMod;
 	bounds.yMin -= boundsMod;
 	bounds.yMax += boundsMod;
-	bounds.zMin -= boundsMod;
-	bounds.zMax += boundsMod;
+	bounds.zMin -= 1.5 * boundsMod;
+	bounds.zMax += 1.5 * boundsMod;
 
 	return bounds;
 }

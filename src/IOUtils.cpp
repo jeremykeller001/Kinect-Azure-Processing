@@ -47,6 +47,9 @@ Eigen::RowVector4d IOUtils::readTransformLine(std::string line) {
 
 
 unordered_map<string, Eigen::Matrix4Xd> IOUtils::readTransformationFile(string fileName) {
+	if (fileName == "") {
+		return unordered_map<string, Eigen::Matrix4Xd>();
+	}
 	string startChars = "###";
 	unordered_map<string, Eigen::Matrix4Xd> fileTransformMap;
 	ifstream infile(fileName);
@@ -92,6 +95,9 @@ unordered_map<string, Eigen::Matrix4Xd> IOUtils::readTransformationFile(string f
 }
 
 std::string IOUtils::obtainBodyTrackingFileSuffix(std::string fileName) {
+	if (fileName == "") {
+		return "";
+	}
 	string startChars = "///";
 	ifstream infile(fileName);
 
