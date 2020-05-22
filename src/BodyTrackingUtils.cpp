@@ -40,6 +40,15 @@ bool BodyTrackingUtils::predictJoints(ptree framesJson, int frameCount, k4abt_tr
 			". Skipping body tracking processing for group." << endl;
 	}
 
+	//size_t num_bodies = k4abt_frame_get_num_bodies(body_frame);
+	num_bodies = k4abt_frame_get_num_bodies(body_frame);
+	uint64_t timestamp = k4abt_frame_get_device_timestamp_usec(body_frame);
+
+	ptree frame_result_json;
+	frame_result_json.put("timestamp_usec", timestamp);
+	frame_result_json.put("frame_id", frameCount);
+	frame_result_json.put("num_bodies", num_bodies);
+
 	for (size_t i = 0; i < num_bodies; i++)
 	{
 		k4abt_skeleton_t skeleton;
@@ -50,7 +59,14 @@ bool BodyTrackingUtils::predictJoints(ptree framesJson, int frameCount, k4abt_tr
 
 		int body_id = k4abt_frame_get_body_id(body_frame, i);
 
+		//ptree which holds the ID of the processed body along with the joint positions, orientations, and confidence levels
+		ptree body_result_json;
+		body_result_json.put("body_id", body_id);
+
 		int total_confidence = 0;
+
+		//Set up ptrees to be used for JSON output
+		ptree joint_position__list, joint_orientation_list, joint_confidence_list;
 
 		for (int j = 0; j < (int)K4ABT_JOINT_COUNT; j++)
 		{
@@ -59,13 +75,55 @@ bool BodyTrackingUtils::predictJoints(ptree framesJson, int frameCount, k4abt_tr
 				// Do not process joint with confidence level of 0
 				continue;
 			}
+
+			//Insert the joint poistion into the array
 			Eigen::RowVector3d jointPosition;
 			jointPosition(0) = skeleton.joints[j].position.xyz.x;
 			jointPosition(1) = skeleton.joints[j].position.xyz.y;
 			jointPosition(2) = skeleton.joints[j].position.xyz.z;
 			jointPositions->push_back(jointPosition);
+
+			ptree joint_positions_json, joint_orientations_json, joint_confidence_json;
+			ptree pos_x, pos_y, pos_z, orient_x, orient_y, orient_z, orient_w;
+
+			pos_x.put("", skeleton.joints[j].position.xyz.x);
+			pos_y.put("", skeleton.joints[j].position.xyz.y);
+			pos_z.put("", skeleton.joints[j].position.xyz.y);
+
+			joint_positions_json.push_back(std::make_pair("", pos_x));
+			joint_positions_json.push_back(std::make_pair("", pos_y));
+			joint_positions_json.push_back(std::make_pair("", pos_z));
+
+			orient_x.put("", skeleton.joints[j].orientation.wxyz.x);
+			orient_y.put("", skeleton.joints[j].orientation.wxyz.y);
+			orient_z.put("", skeleton.joints[j].orientation.wxyz.z);
+			orient_w.put("", skeleton.joints[j].orientation.wxyz.w);
+
+			joint_orientations_json.push_back(std::make_pair("", orient_w));
+			joint_orientations_json.push_back(std::make_pair("", orient_x));
+			joint_orientations_json.push_back(std::make_pair("", orient_y));
+			joint_orientations_json.push_back(std::make_pair("", orient_z));
+
+			total_confidence += skeleton.joints[j].confidence_level;
+
+			//Pushes the confidence level of each joint back on the JSON group containing the quaternions and the positions
+			joint_confidence_json.put("", skeleton.joints[j].confidence_level);
+
+			joint_position__list.push_back(std::make_pair("", joint_positions_json));
+			joint_orientation_list.push_back(std::make_pair("", joint_orientations_json));
+			joint_confidence_json.push_back(std::make_pair("", joint_orientations_json));
 		}
+		body_result_json.add_child("joint_positions", joint_position__list);
+		body_result_json.add_child("joint_orientations", joint_orientation_list);
+		body_result_json.add_child("joint_confidence", joint_confidence_list);
+
+		body_result_json.put("total_confidence", total_confidence);
+
+		frame_result_json.add_child("bodies", body_result_json);
 	}
+
+	framesJson.add_child("frame_result", frame_result_json);
+
 	k4abt_frame_release(body_frame);
 
 	if (num_bodies == 1) {

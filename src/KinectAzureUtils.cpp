@@ -13,6 +13,8 @@
 
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
+#include <boost/filesystem.hpp>
+
 using boost::property_tree::ptree;
 
 // https://github.com/microsoft/Azure-Kinect-Sensor-SDK/blob/develop/examples/fastpointcloud/main.cpp
@@ -384,7 +386,9 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 	// Grab filenames to read in
 	std::vector<std::string> mkvFiles = IOUtils::obtainMkvFilesFromDirectory(dirPath);
 	std::unordered_map<std::string, Eigen::Matrix4Xd> transformations = IOUtils::readTransformationFile(transformFilePath);
-	std::string btFileSuffix = IOUtils::obtainBodyTrackingFileSuffix(transformFilePath);
+	//std::string btFileSuffix = IOUtils::obtainBodyTrackingFileSuffix(transformFilePath);
+
+	std::string btFileSuffix = "Sub2.mkv";
 
 	int fileCount = mkvFiles.size();
 	std::string masterFileSuffix = "Master.mkv";
@@ -446,6 +450,21 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 		// First check to see if master frame has not been found for a consecutive number of frames
 		if (missingFrameCount >= endThreshold) {
 			// If so, stop processing and exit
+
+			// Create an output stream
+			std::ofstream outfile;
+
+			// Remove Master.mkv
+			// Add .json
+			std::string outfileName = mkvFiles.at(0);
+			outfileName = outfileName.substr(0, outfileName.length() - 11);
+			outfileName = outfileName.append(".json");
+
+			// Open the file to write to
+			outfile.open(outfileName);
+
+			// Write to the file
+			boost::property_tree::json_parser::write_json(outfile, jointOutputJson);
 			frame = 1000000;
 			break;
 		}
@@ -497,7 +516,7 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 					}
 
 					// Only process group if it contains all frames along with body tracking* (only if tracker capture exists)
-					if (groupFrames.size() == fileCount && (!trackerCaptureFound || jointsObtained) && groupCount > 30) {
+					if (groupFrames.size() == fileCount && (!trackerCaptureFound || jointsObtained && groupCount > 100)) { // 
 						missingFrameCount = 0;
 
 						// Decrement frame count for the current frame, this will not be processed and outputted

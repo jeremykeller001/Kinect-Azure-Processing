@@ -17,17 +17,24 @@ int main(int argc, char** argv) {
 	//std::string mkvDirectory = "C:\\Users\\Jeremy\\Desktop\\DU COB\\ForJeremy\\ForJeremy";
 	//std::string transformFilePath = "C:\\Users\\Jeremy\\Desktop\\DU COB\\ForJeremy\\ForJeremy\\CalFeb17Transv2.txt";
 
-	//std::string mkvDirectory = "C:\\Users\\Jeremy\\Desktop\\DU COB\\2CameraCapture\\2CameraCapture";
-	//std::string transformFilePath = "C:\\Users\\Jeremy\\Desktop\\DU COB\\2CameraCapture\\2CameraCapture\\CalMar5.txt";
+	std::string mkvDirectory = "E:\\Kinect Azure\\Captures";
+	std::string transformFilePath = "E:\\Kinect Azure\\CalFeb17Transv2.txt";
 
-	if (argc < 3) {
+	if (argc < 1) {
 		cerr << "Usage: project.exe transformFile recordingDirectory" << endl;
 		return -1;
 	}
 	
-	string transformFilePath = string(argv[1]);
-	string mkvDirectory = string(argv[2]);
-	return KinectAzureUtils::outputRecordingsToPlyFiles(mkvDirectory, transformFilePath);
+	//string transformFilePath = string(argv[1]);
+	//string mkvDirectory = string(argv[2]);
+
+	try {
+		return KinectAzureUtils::outputRecordingsToPlyFiles(mkvDirectory, transformFilePath);
+	}
+	//Catches all exceptions - bad practice
+	catch (...) {
+		// ...
+	}
 
 	//
 	// Debug Only - For running PCL methods on a single point cloud file
