@@ -19,9 +19,9 @@ set (HEADERS
 	src/PclUtils.h
 	src/Ply.h)
 
-add_executable( project ${SOURCE} ${HEADERS} )
-set_property( DIRECTORY PROPERTY VS_STARTUP_PROJECT project )
-set_property (TARGET project
+add_executable( KinectAzureProcessor ${SOURCE} ${HEADERS} )
+set_property( DIRECTORY PROPERTY VS_STARTUP_PROJECT KinectAzureProcessor )
+set_property (TARGET KinectAzureProcessor
   PROPERTY
     # Enable C++14 standard compliance
     CXX_STANDARD 14
@@ -49,7 +49,7 @@ if( PCL_FOUND )
  
   # Additional Dependencies
   # [Linker]>[Input]>[Additional Dependencies]
-  target_link_libraries( project ${PCL_LIBRARIES} )
+  target_link_libraries( KinectAzureProcessor ${PCL_LIBRARIES} )
 endif()
 
 set(KINECT_SDK_INCLUDE "C:/Program Files/Azure Kinect SDK v1.3.0/sdk/include/")
@@ -58,4 +58,4 @@ include_directories( ${KINECT_SDK_INCLUDE} ${KINECT_BT_INCLUDE})
 
 set(KINECT_SDK_LIB64 "C:/Program Files/Azure Kinect SDK v1.3.0/sdk/windows-desktop/amd64/release/lib")
 set(KINECT_BT_LIB64 "C:/Program Files/Azure Kinect Body Tracking SDK/sdk/windows-desktop/amd64/release/lib")
-target_link_libraries( project ${KINECT_SDK_LIB64}/k4a.lib ${KINECT_SDK_LIB64}/k4arecord.lib ${KINECT_BT_LIB64}/k4abt.lib)
+target_link_libraries( KinectAzureProcessor ${KINECT_SDK_LIB64}/k4a.lib ${KINECT_SDK_LIB64}/k4arecord.lib ${KINECT_BT_LIB64}/k4abt.lib)

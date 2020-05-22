@@ -241,9 +241,10 @@ void KinectAzureUtils::outputPointCloudGroup(std::vector<Ply> plys, uint64_t gro
 			}
 
 			// In calibration mode, output point cloud before statistical outlier filtering is applied
-			if (calibrationMode && pclCloudSingle->size() > 0) {
+			if (debugMode && pclCloudSingle->size() > 0) {
+				pclCloudSingle->resize(pclCloudSingle->size());
 				std::stringstream singleFileName;
-				singleFileName << outputPath << "\\individualPc_" << groupCount << "_" << index << ".pcd";
+				singleFileName << outputPath << "\\Prefiltered_IndividualPc_" << groupCount << "_" << index << ".pcd";
 				PclUtils::outputToFile(pclCloudSingle, singleFileName.str());
 			}
 
@@ -252,9 +253,9 @@ void KinectAzureUtils::outputPointCloudGroup(std::vector<Ply> plys, uint64_t gro
 			PclUtils::applyStatisticalOutlierFilter(pclCloudSingle, filteredPc);
 			
 			// For single frame output
-			if (filteredPc->size() > 0 && debugMode) {
+			if (filteredPc->size() > 0 && (debugMode || calibrationMode)) {
 				std::stringstream filteredFileName;
-				filteredFileName << outputPath << "\\filteredPc_" << groupCount << "_" << index << ".pcd";
+				filteredFileName << outputPath << "\\IndividualPc_" << groupCount << "_" << index << ".pcd";
 				PclUtils::outputToFile(filteredPc, filteredFileName.str());
 			}
 
@@ -287,8 +288,8 @@ void KinectAzureUtils::outputPointCloudGroup(std::vector<Ply> plys, uint64_t gro
 		// Case when there is no joint tracking
 		//
 
-		// Apply generic bounding box (x = {+-1200mm}, y = {+-9999mm}, z = {0-2500mm}
-		BodyTrackingUtils::BoundingBox boundingBox = { -1200, 1200, -9999, 9999, 0, 2500 };
+		// Apply generic bounding box
+		BodyTrackingUtils::BoundingBox boundingBox = { -2000, 2000, -9999, 9999, 0, 3000 };
 
 		pcl::PointCloud<pcl::PointXYZ>::Ptr pclCloudCombined(new pcl::PointCloud<pcl::PointXYZ>);
 		int index = 0;
@@ -301,9 +302,10 @@ void KinectAzureUtils::outputPointCloudGroup(std::vector<Ply> plys, uint64_t gro
 			}
 
 			// In calibration mode, output point cloud before statistical outlier filtering is applied
-			if (calibrationMode && pclCloudSingle->size() > 0) {
+			if (debugMode && pclCloudSingle->size() > 0) {
+				pclCloudSingle->resize(pclCloudSingle->size());
 				std::stringstream singleFileName;
-				singleFileName << outputPath << "\\individualPc_" << groupCount << "_" << index << ".pcd";
+				singleFileName << outputPath << "\\Prefiltered_IndividualPc_" << groupCount << "_" << index << ".pcd";
 				PclUtils::outputToFile(pclCloudSingle, singleFileName.str());
 			}
 
@@ -312,9 +314,9 @@ void KinectAzureUtils::outputPointCloudGroup(std::vector<Ply> plys, uint64_t gro
 			PclUtils::applyStatisticalOutlierFilter(pclCloudSingle, filteredPc);
 
 			// For single frame output
-			if (filteredPc->size() > 0 && debugMode) {
+			if (filteredPc->size() > 0 && (debugMode || calibrationMode)) {
 				std::stringstream filteredFileName;
-				filteredFileName << outputPath << "\\filteredPc_" << groupCount << "_" << index << ".pcd";
+				filteredFileName << outputPath << "\\IndividualPc_" << groupCount << "_" << index << ".pcd";
 				PclUtils::outputToFile(filteredPc, filteredFileName.str());
 			}
 
@@ -474,8 +476,8 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 	std::vector<CalibrationInfo> calibrationInfo;
 
 	// Processing variables
-	uint64_t groupCount = 0;
-	uint64_t previousGroupCount = 0;
+	int groupCount = 0;
+	int previousGroupCount = 0;
 	uint64_t startGroupTimestamp = 0;
 	std::string startFileName;
 	// Assume all files are run with the same frame rate
@@ -551,7 +553,7 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 
 					// Only process group if it contains all frames along with body tracking* (only if tracker capture exists)
 					if (groupFrames.size() == fileCount && (!trackerCaptureFound || jointsObtained)) {
-						if (frameOutputNumber > 0 || groupCount >= frameOutputNumber) {
+						if (frameOutputNumber == -1 || groupCount >= frameOutputNumber) {
 							missingFrameCount = 0;
 
 							// Decrement frame count for the current frame, this will not be processed and outputted
@@ -562,10 +564,10 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 
 							// Re-increment frame count since it will be accurate for the next group processing
 							fileIndexCounter[frameInfo.file->filename] = fileIndexCounter[frameInfo.file->filename]++;
-						}
 
-						if (frameOutputNumber > 0) {
-							individualFrameProcessed = true;
+							if (frameOutputNumber > 0) {
+								individualFrameProcessed = true;
+							}
 						}
 					}
 					else if (groupFrames.size() < fileCount) {

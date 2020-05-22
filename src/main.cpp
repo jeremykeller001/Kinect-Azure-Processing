@@ -16,12 +16,12 @@ using namespace std;
 void usage(char* projectName) {
 	cout << "Usage: " << projectName << " [options]" << endl <<
 		"	Options:" << endl <<
-		"	-h | --help						Show this help message" << endl <<
-		"	-t | --transform FILE_PATH		File path to transform file" << endl <<
-		"	-c | --calibration				Run in calibration mode" << endl <<
-		"	-f | --frame FRAME				Specify to only output an individual frame (default: 15 in calibration mode)" << endl <<
-		"	-d | --debug					Enable debug mode logging and outputs" << endl <<
-		"	--disableMesh					If specified, meshing functionality and output will be disabled" << endl;
+		"	-h | --help\t\t\tShow this help message" << endl <<
+		"	-t | --transform FILE_PATH\tFile path to transform file" << endl <<
+		"	-c | --calibration\t\tRun in calibration mode" << endl <<
+		"	-f | --frame FRAME\t\tSpecify to only output an individual frame (default: 15 in calibration mode)" << endl <<
+		"	-d | --debug\t\t\tEnable debug mode logging and outputs" << endl <<
+		"	--disableMesh\t\t\tIf specified, meshing functionality and output will be disabled" << endl;
 }
 
 int main(int argc, char** argv) {
@@ -51,7 +51,7 @@ int main(int argc, char** argv) {
 		}
 		else if ((arg == "-t") || (arg == "--transform")) {
 			if (i + 1 < argc) {
-				transformPath = argv[i++];
+				transformPath = argv[++i];
 			}
 			else {
 				cerr << "--transformation option requires a file path argument to be specified." << endl;
@@ -66,7 +66,7 @@ int main(int argc, char** argv) {
 		}
 		else if ((arg == "-f") || (arg == "--frame")) {
 			if (i + 1 < argc) {
-				frame = atoi(argv[i++]);
+				frame = atoi(argv[++i]);
 			}
 			else {
 				cerr << "--frame option requires a frame number argument to be specified." << endl;
