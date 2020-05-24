@@ -13,9 +13,20 @@
 
 using namespace std;
 
+void usage(char* projectName) {
+	cout << "Usage: " << projectName << " [options]" << endl <<
+		"	Options:" << endl <<
+		"	-h | --help\t\t\tShow this help message" << endl <<
+		"	-t | --transform FILE_PATH\tFile path to transform file" << endl <<
+		"	-c | --calibration\t\tRun in calibration mode" << endl <<
+		"	-f | --frame FRAME\t\tSpecify to only output an individual frame (default: 15 in calibration mode)" << endl <<
+		"	-d | --debug\t\t\tEnable debug mode logging and outputs" << endl <<
+		"	--disableMesh\t\t\tIf specified, meshing functionality and output will be disabled" << endl;
+}
+
 int main(int argc, char** argv) {
-	//std::string mkvDirectory = "C:\\Users\\Jeremy\\Desktop\\DU COB\\ForJeremy\\ForJeremy";
-	//std::string transformFilePath = "C:\\Users\\Jeremy\\Desktop\\DU COB\\ForJeremy\\ForJeremy\\CalFeb17Transv2.txt";
+	//std::string mkvDirectory = "F:\\DU COB\\Walk2";
+	//std::string transformFilePath = "F:\\DU COB\\Walk2\\trans2.txt";
 
 	std::string mkvDirectory = "E:\\Kinect Azure\\Captures";
 	std::string transformFilePath = "E:\\Kinect Azure\\CalFeb17Transv2.txt";
@@ -57,29 +68,59 @@ int main(int argc, char** argv) {
 
 	if (!proceed) {
 		return -1;
+=======
+	//std::string mkvDirectory = "C:\\Users\\Jeremy\\Desktop\\DU COB\\Walk";
+	//std::string transformFilePath = "C:\\Users\\Jeremy\\Desktop\\DU COB\\Walk\\CalApril29Trans.txt";
+
+	
+	if (argc < 2) {
+		usage(argv[0]);
+		return 1;
+>>>>>>> master
 	}
 
-	Ply pointCloud;
-
-	while (!ply.eof()) {
-		Eigen::RowVector3d point;
-		ply >> str;
-		point(0) = atof(str.c_str());
-		ply >> str;
-		point(1) = atof(str.c_str());
-		ply >> str;
-		point(2) = atof(str.c_str());
-		pointCloud.addPoint(point);
+	string captureDirectory = argv[1];
+	string transformPath = "";
+	bool calibrationMode = false;
+	int frame = -1;
+	bool debugMode = false;
+	bool skipMesh = false;
+	for (int i = 1; i < argc; i++) {
+		string arg = argv[i];
+		if ((arg == "-h") || (arg == "--help")) {
+			usage(argv[0]);
+			return 0;
+		}
+		else if ((arg == "-t") || (arg == "--transform")) {
+			if (i + 1 < argc) {
+				transformPath = argv[++i];
+			}
+			else {
+				cerr << "--transformation option requires a file path argument to be specified." << endl;
+			}
+		}
+		else if ((arg == "-c") || (arg == "--calibration")) {
+			calibrationMode = true;
+			if (frame == -1) {
+				// Set default frame if it has not already been specified
+				frame = 15;
+			}
+		}
+		else if ((arg == "-f") || (arg == "--frame")) {
+			if (i + 1 < argc) {
+				frame = atoi(argv[++i]);
+			}
+			else {
+				cerr << "--frame option requires a frame number argument to be specified." << endl;
+			}
+		}
+		else if ((arg == "-d") || (arg == "--debug")) {
+			debugMode = true;
+		}
+		else if (arg == "--disableMesh") {
+			skipMesh = true;
+		}
 	}
-
-	cout << "Finished reading file" << endl;
-	ply.close();
-
-	// Convert to pcl::PointCloud
-	pcl::PointCloud<pcl::PointXYZ>::Ptr pclPointCloud = PclUtils::convertPlyToPointCloud(pointCloud);
-
-	PclUtils::filterAndMesh(pclPointCloud, "poissonMesh4Cam");
-
-	return 0;
-	*/
+	
+	return KinectAzureUtils::outputRecordingsToPlyFiles(captureDirectory, transformPath, frame, calibrationMode, debugMode, skipMesh);
 }
