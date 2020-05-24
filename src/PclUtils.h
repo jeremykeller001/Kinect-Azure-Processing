@@ -15,6 +15,10 @@
 #include <pcl/features/normal_3d.h>
 #include <pcl/features/normal_3d_omp.h>
 #include <pcl/surface/gp3.h>
+#include <pcl/surface/vtk_smoothing/vtk_utils.h>
+#include <vtkFillHolesFilter.h>
+#include <vtkPolyData.h>
+#include <vtkSmartPointer.h>
 #include <string>
 #include "Ply.h"
 
@@ -29,18 +33,14 @@ public:
 	static pcl::PCLPointCloud2 convertPlyToPointCloud2(Ply pointCloud);
 	static Ply convertPcdToPly(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
 
-	static void applyNearestNeighborFilter(pcl::PointCloud<pcl::PointXYZ>::Ptr inCloud, pcl::PointCloud<pcl::PointXYZ>::Ptr outCloud);
-
 	static void applyStatisticalOutlierFilter(Ply inCloud, pcl::PointCloud<pcl::PointXYZ>::Ptr filteredCloud);
 
 	static void applyStatisticalOutlierFilter(pcl::PointCloud<pcl::PointXYZ>::Ptr inCloud, pcl::PointCloud<pcl::PointXYZ>::Ptr outCloud);
 
-	static void resampleAndMesh(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
+	static void resampleAndMesh(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, std::string outputName, bool skipMesh);
 
 	static void outputToFile(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, std::string fileName);
 
 	static void downsample(pcl::PointCloud<pcl::PointXYZ>::Ptr inCloud, pcl::PointCloud<pcl::PointXYZ>::Ptr outCloud);
-
-	static void filterAndMesh(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, std::string outputName);
 };
 #endif
