@@ -40,7 +40,7 @@ int main(int argc, char** argv) {
 	//string mkvDirectory = string(argv[2]);
 
 	try {
-		return KinectAzureUtils::outputRecordingsToPlyFiles(mkvDirectory, transformFilePath);
+		return KinectAzureUtils::outputRecordingsToPlyFiles(mkvDirectory, transformFilePath, 250, true, false, true);
 	}
 	//Catches all exceptions - bad practice
 	catch (...) {
@@ -51,6 +51,7 @@ int main(int argc, char** argv) {
 	// Debug Only - For running PCL methods on a single point cloud file
 	//
 	// Read in Ply
+
 	/*
 	//ifstream ply("C:\\Users\\Jeremy\\git\\Kinect-Azure-Processor\\out\\build\\x64-Debug\\2cam.ply");
 	ifstream ply("C:\\Users\\Jeremy\\\Desktop\\DU COB\\MkvTestFiles\\Group150filtered.ply");
@@ -123,4 +124,6 @@ int main(int argc, char** argv) {
 	}
 	
 	return KinectAzureUtils::outputRecordingsToPlyFiles(captureDirectory, transformPath, frame, calibrationMode, debugMode, skipMesh);
+
+	*/
 }

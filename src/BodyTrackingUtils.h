@@ -45,7 +45,7 @@ public:
 		double zMax;
 	};
 
-	static bool predictJoints(boost::property_tree::ptree jsonFrames, int frameCount, k4abt_tracker_t tracker, k4a_capture_t capture_handle, std::vector<Eigen::RowVector3d>* jointPositions);
+	static bool predictJoints(boost::property_tree::ptree* jsonFrames, int frameCount, k4abt_tracker_t tracker, k4a_capture_t capture_handle, std::vector<Eigen::RowVector3d>* jointPositions);
 
 	//static void outputJoints(int frameCount, k4a_float3_t jointPositions);
 

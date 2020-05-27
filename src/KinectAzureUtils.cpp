@@ -498,7 +498,7 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 	bool trackerCaptureFound = (tracker != NULL);
 	bool jointsObtained = false;
 	std::vector<Eigen::RowVector3d> sub2Joints;
-	ptree jointOutputJson;
+	ptree jointOutputJson, framesJson;
 	std::vector<Eigen::RowVector3d> joints;
 
 	// Loop variables
@@ -512,7 +512,7 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 		// If individual frame is specified and has already been output, end processing
 		if (missingFrameCount >= endThreshold || individualFrameProcessed) {
 			// If so, stop processing and exit
-
+			
 			// Create an output stream
 			std::ofstream outfile;
 
@@ -525,8 +525,11 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 			// Open the file to write to
 			outfile.open(outfileName);
 
+			jointOutputJson.add_child("frames", framesJson);
+
 			// Write to the file
 			boost::property_tree::json_parser::write_json(outfile, jointOutputJson);
+			//boost::property_tree::json_parser::write_json(std::cout, jointOutputJson);
 			frame = 1000000;
 			break;
 		}
@@ -630,10 +633,6 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 				groupFrames.push_back(generatePointCloud(frameInfo, calibrations));
 
 				// If capture ends with body tracking suffix, also process joint tracking data
-
-				if (trackerCaptureFound && IOUtils::endsWith(frameInfo.file->filename, btFileSuffix) && !individualFrameProcessed) {
-					jointsObtained = BodyTrackingUtils::predictJoints(groupCount, tracker, frameInfo.file->capture, &joints);
-				}
 			}
 			else {
 				print_capture_info(frameInfo.file);
@@ -642,9 +641,8 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 				groupFrames.push_back(generatePointCloud(frameInfo, calibrations));
 
 				// If capture is Sub2, process joint tracking data
-				if (trackerCaptureFound && IOUtils::endsWith(frameInfo.file->filename, btFileSuffix)) {
-
-					jointsObtained = BodyTrackingUtils::predictJoints(jointOutputJson, groupCount, tracker, frameInfo.file->capture, &joints);
+				if (trackerCaptureFound && IOUtils::endsWith(frameInfo.file->filename, btFileSuffix) && !individualFrameProcessed) {
+					jointsObtained = BodyTrackingUtils::predictJoints(&framesJson, groupCount, tracker, frameInfo.file->capture, &joints);
 				}
 			}
 		}

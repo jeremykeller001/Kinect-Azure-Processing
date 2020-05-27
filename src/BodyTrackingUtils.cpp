@@ -13,7 +13,7 @@ using namespace std;
 using boost::property_tree::ptree;
 
 // TODO: Modify this method to output the joints to a ptree json object
-bool BodyTrackingUtils::predictJoints(ptree framesJson, int frameCount, k4abt_tracker_t tracker, k4a_capture_t capture_handle, vector<Eigen::RowVector3d>* jointPositions) {
+bool BodyTrackingUtils::predictJoints(ptree* framesJson, int frameCount, k4abt_tracker_t tracker, k4a_capture_t capture_handle, vector<Eigen::RowVector3d>* jointPositions) {
 	k4a_wait_result_t queue_capture_result = k4abt_tracker_enqueue_capture(tracker, capture_handle, K4A_WAIT_INFINITE);
 	if (queue_capture_result != K4A_WAIT_RESULT_SUCCEEDED)
 	{
@@ -45,9 +45,8 @@ bool BodyTrackingUtils::predictJoints(ptree framesJson, int frameCount, k4abt_tr
 	uint64_t timestamp = k4abt_frame_get_device_timestamp_usec(body_frame);
 
 	ptree frame_result_json;
-	frame_result_json.put("timestamp_usec", timestamp);
-	frame_result_json.put("frame_id", frameCount);
-	frame_result_json.put("num_bodies", num_bodies);
+
+	ptree body_list;
 
 	for (size_t i = 0; i < num_bodies; i++)
 	{
@@ -113,16 +112,25 @@ bool BodyTrackingUtils::predictJoints(ptree framesJson, int frameCount, k4abt_tr
 			joint_orientation_list.push_back(std::make_pair("", joint_orientations_json));
 			joint_confidence_json.push_back(std::make_pair("", joint_orientations_json));
 		}
-		body_result_json.add_child("joint_positions", joint_position__list);
 		body_result_json.add_child("joint_orientations", joint_orientation_list);
+		body_result_json.add_child("joint_positions", joint_position__list);
 		body_result_json.add_child("joint_confidence", joint_confidence_list);
 
 		body_result_json.put("total_confidence", total_confidence);
 
-		frame_result_json.add_child("bodies", body_result_json);
+		body_list.push_back(std::make_pair("", body_result_json));
+		
 	}
 
-	framesJson.add_child("frame_result", frame_result_json);
+	if (num_bodies != 0) {
+		frame_result_json.add_child("bodies", body_list);
+		frame_result_json.put("frame_id", frameCount);
+		frame_result_json.put("num_bodies", num_bodies);
+		frame_result_json.put("timestamp_usec", timestamp);
+
+		framesJson->push_back(std::make_pair("", frame_result_json));
+	}
+	
 
 	k4abt_frame_release(body_frame);
 
