@@ -183,27 +183,21 @@ Ply KinectAzureUtils::generatePointCloud(KinectAzureUtils::FrameInfo frameInfo, 
 void KinectAzureUtils::outputPointCloudGroup(std::vector<Ply> plys, uint64_t groupCount, std::unordered_map<std::string, Eigen::Matrix4Xd> transformations, 
 	std::string outputPath, std::vector<Eigen::RowVector3d> jointPositions, std::string bodyTrackingFileSuffix, bool calibrationMode, bool debugMode, bool skipMesh) {
 
+	// Calculate different behavior settings:
+	bool individualOutputUnfiltered = debugMode || (calibrationMode && transformations.size() == 0);
+	bool individualOutputFiltered = debugMode || (calibrationMode && transformations.size() > 0);
+	bool unprocessedMergedOutput = debugMode;
+	bool filterAndMeshing = !calibrationMode;
+
 	std::stringstream outputFileName;
 	outputFileName << "Group" << groupCount << "_";
 
 	// Apply transformations to move all point clouds into master coordinate system
-	
 	std::vector<Ply> transformedPlys = MatrixUtils::applyTransforms(plys, transformations);
 
-	//
-	// TEMP: Apply second set of transforms
-	//
-	//std::unordered_map<std::string, Eigen::Matrix4Xd> transformations2 = 
-	//	IOUtils::readTransformationFile("C:\\Users\\Jeremy\\Desktop\\DU COB\\Walk\\Cal2.txt");
-	//std::vector<Ply> transformedPlys = MatrixUtils::applyTransforms(transformedPlys1, transformations2);
-
-
-	// Filter points if joint positions are given
+	BodyTrackingUtils::BoundingBox boundingBox;
+	// If there are joint positions, create a bounding box based off of them
 	if (jointPositions.size() > 0) {
-		//
-		// Filter out points not in bounding box;
-		//
-
 		// Grab transformation for body tracking file to apply to jointPositions
 		bool jointTransformFound = false;
 		Eigen::Matrix4Xd jointPositionTransformation;
@@ -216,9 +210,20 @@ void KinectAzureUtils::outputPointCloudGroup(std::vector<Ply> plys, uint64_t gro
 			}
 		}
 
+		if (debugMode) {
+			// Output individual json for frame
+			std::stringstream jointOutputName;
+			jointOutputName << outputPath << "\\Joints_" << groupCount << ".txt";
+			ofstream out;
+			out.open(jointOutputName.str(), ios::out);
+			for (Eigen::RowVector3d jointXYZ : jointPositions) {
+				out << jointXYZ(0) << " " << jointXYZ(1) << " " << jointXYZ(2) << endl;
+			}
+			out.close();
+		}
+
 		// Apply transform to joint locations
 		// Create Bounding box
-		BodyTrackingUtils::BoundingBox boundingBox;
 		if (jointTransformFound) {
 			std::vector<Eigen::RowVector3d> jointPositionsTransformed = MatrixUtils::applyJointTrackingTransform(jointPositions, jointPositionTransformation);
 			boundingBox = BodyTrackingUtils::createBoundingBox(jointPositionsTransformed);
@@ -227,112 +232,83 @@ void KinectAzureUtils::outputPointCloudGroup(std::vector<Ply> plys, uint64_t gro
 			boundingBox = BodyTrackingUtils::createBoundingBox(jointPositions);
 		}
 
-
-		// Apply bounds, convert to pcd file, and filter
+		// Add 'f' modifier to output file name
 		outputFileName << "f";
-		pcl::PointCloud<pcl::PointXYZ>::Ptr pclCloudCombined(new pcl::PointCloud<pcl::PointXYZ>);
-		int index = 0;
-		for (Ply pc : transformedPlys) {
-			pcl::PointCloud<pcl::PointXYZ>::Ptr pclCloudSingle(new pcl::PointCloud<pcl::PointXYZ>);
-			for (Eigen::RowVector3d point : pc.getPoints()) {
-				if (BodyTrackingUtils::withinBounds(point, boundingBox)) {
-					pclCloudSingle->points.push_back({ (float)point(0), (float)point(1), (float)point(2) });
-				}
-			}
-
-			// In calibration mode, output point cloud before statistical outlier filtering is applied
-			if (debugMode && pclCloudSingle->size() > 0) {
-				pclCloudSingle->resize(pclCloudSingle->size());
-				std::stringstream singleFileName;
-				singleFileName << outputPath << "\\Prefiltered_IndividualPc_" << groupCount << "_" << index << ".pcd";
-				PclUtils::outputToFile(pclCloudSingle, singleFileName.str());
-			}
-
-			// Apply statistical outlier filter
-			pcl::PointCloud<pcl::PointXYZ>::Ptr filteredPc(new pcl::PointCloud<pcl::PointXYZ>);
-			PclUtils::applyStatisticalOutlierFilter(pclCloudSingle, filteredPc);
-			
-			// For single frame output
-			if (filteredPc->size() > 0 && (debugMode || calibrationMode)) {
-				std::stringstream filteredFileName;
-				filteredFileName << outputPath << "\\IndividualPc_" << groupCount << "_" << index << ".pcd";
-				PclUtils::outputToFile(filteredPc, filteredFileName.str());
-			}
-
-			*pclCloudCombined += *filteredPc;
-			index++;
-		}
-
-		// For merged point cloud output before downsampling and smoothing
-		if (debugMode) {
-			std::string pcFileName = std::string(outputFileName.str());
-			pcFileName += "_full.pcd";
-			std::string fullFilePath = std::string(outputPath);
-			fullFilePath += "\\";
-			fullFilePath += pcFileName;
-			PclUtils::outputToFile(pclCloudCombined, fullFilePath);
-		}
-
-		// Meshing
-		// Do not mesh if in calibration mode
-		if (!calibrationMode) {
-			std::string meshFileName = std::string(outputFileName.str());
-			std::string fullMeshPath = std::string(outputPath);
-			fullMeshPath += "\\";
-			fullMeshPath += meshFileName;
-			PclUtils::resampleAndMesh(pclCloudCombined, fullMeshPath, skipMesh);
-		}
 	}
 	else {
-		//
-		// Case when there is no joint tracking
-		//
+		// Case when there is no joint locations
+		// Create a default bounding box of the capture space
+		boundingBox = { -2000, 2000, -9999, 9999, 0, 3000 };
 
-		// Apply generic bounding box
-		BodyTrackingUtils::BoundingBox boundingBox = { -2000, 2000, -9999, 9999, 0, 3000 };
+		// Skip filtering and meshing since the capture will not be isolated
+		filterAndMeshing = false;
 
-		pcl::PointCloud<pcl::PointXYZ>::Ptr pclCloudCombined(new pcl::PointCloud<pcl::PointXYZ>);
-		int index = 0;
-		for (Ply pc : transformedPlys) {
-			pcl::PointCloud<pcl::PointXYZ>::Ptr pclCloudSingle(new pcl::PointCloud<pcl::PointXYZ>);
-			for (Eigen::RowVector3d point : pc.getPoints()) {
-				if (BodyTrackingUtils::withinBounds(point, boundingBox)) {
-					pclCloudSingle->points.push_back({ (float)point(0), (float)point(1), (float)point(2) });
-				}
+		// Output unprocessed merged point cloud output, since additonal meshing and processing will not occur
+		unprocessedMergedOutput = true;
+
+		// Add 'a' modifier to output file name
+		outputFileName << "a";
+	}
+
+	// Apply bounds, convert to pcd file, and filter
+	pcl::PointCloud<pcl::PointXYZ>::Ptr pclCloudCombined(new pcl::PointCloud<pcl::PointXYZ>);
+	int index = 0;
+	for (Ply pc : transformedPlys) {
+		pcl::PointCloud<pcl::PointXYZ>::Ptr pclCloudSingle(new pcl::PointCloud<pcl::PointXYZ>);
+		for (Eigen::RowVector3d point : pc.getPoints()) {
+			if (BodyTrackingUtils::withinBounds(point, boundingBox)) {
+				pclCloudSingle->points.push_back({ (float)point(0), (float)point(1), (float)point(2) });
 			}
-
-			// In calibration mode, output point cloud before statistical outlier filtering is applied
-			if (debugMode && pclCloudSingle->size() > 0) {
-				pclCloudSingle->resize(pclCloudSingle->size());
-				std::stringstream singleFileName;
-				singleFileName << outputPath << "\\Prefiltered_IndividualPc_" << groupCount << "_" << index << ".pcd";
-				PclUtils::outputToFile(pclCloudSingle, singleFileName.str());
-			}
-
-			// Apply statistical outlier filter
-			pcl::PointCloud<pcl::PointXYZ>::Ptr filteredPc(new pcl::PointCloud<pcl::PointXYZ>);
-			PclUtils::applyStatisticalOutlierFilter(pclCloudSingle, filteredPc);
-
-			// For single frame output
-			if (filteredPc->size() > 0 && (debugMode || calibrationMode)) {
-				std::stringstream filteredFileName;
-				filteredFileName << outputPath << "\\IndividualPc_" << groupCount << "_" << index << ".pcd";
-				PclUtils::outputToFile(filteredPc, filteredFileName.str());
-			}
-
-			*pclCloudCombined += *filteredPc;
-			index++;
 		}
 
-		// If there is no joint tracking available for accurate body isolation, just output the merged point cloud without extra processing
+		// Calculate individual file name
+		std::string individualFileNameIdentifier;
+		// Only calculate if any individual file output is specified
+		if (individualOutputUnfiltered || individualOutputFiltered) {
+			individualFileNameIdentifier = IOUtils::extractFileName(pc.getFileName());
+		}
+		
+		// In calibration mode, output point cloud before statistical outlier filtering is applied
+		if (pclCloudSingle->size() > 0 && individualOutputUnfiltered) {
+			pclCloudSingle->resize(pclCloudSingle->size());
+			std::stringstream singleFileName;
+			singleFileName << outputPath << "\\Unfiltered_IndividualPc_" << groupCount << "_" << individualFileNameIdentifier << ".pcd";
+			PclUtils::outputToFile(pclCloudSingle, singleFileName.str());
+		}
+
+		// Apply statistical outlier filter
+		pcl::PointCloud<pcl::PointXYZ>::Ptr filteredPc(new pcl::PointCloud<pcl::PointXYZ>);
+		PclUtils::applyStatisticalOutlierFilter(pclCloudSingle, filteredPc);
+
+		// For single frame output
+		if (filteredPc->size() > 0 && individualOutputFiltered) {
+			std::stringstream filteredFileName;
+			filteredFileName << outputPath << "\\IndividualPc_" << groupCount << "_" << individualFileNameIdentifier << ".pcd";
+			PclUtils::outputToFile(filteredPc, filteredFileName.str());
+		}
+
+		*pclCloudCombined += *filteredPc;
+		index++;
+	}
+
+	// For merged point cloud output before downsampling and smoothing
+	if (unprocessedMergedOutput) {
 		std::string pcFileName = std::string(outputFileName.str());
-		pcFileName += ".pcd";
+		pcFileName += "_full.pcd";
 		std::string fullFilePath = std::string(outputPath);
 		fullFilePath += "\\";
 		fullFilePath += pcFileName;
 		PclUtils::outputToFile(pclCloudCombined, fullFilePath);
 	}
 
+	// Meshing
+	if (filterAndMeshing) {
+		std::string meshFileName = std::string(outputFileName.str());
+		std::string fullMeshPath = std::string(outputPath);
+		fullMeshPath += "\\";
+		fullMeshPath += meshFileName;
+		PclUtils::resampleAndMesh(pclCloudCombined, fullMeshPath, skipMesh);
+	}
 }
 
 bool KinectAzureUtils::openFiles(KinectAzureUtils::recording_t** filess, k4a_calibration_t** calibrationss, k4abt_tracker_t &tracker, std::vector<std::string> mkvFiles, std::string btFileSuffix) {

@@ -14,7 +14,7 @@
 using namespace std;
 
 void usage(char* projectName) {
-	cout << "Usage: " << projectName << " [options]" << endl <<
+	cout << "Usage: " << projectName << " transform/file/path [options]" << endl <<
 		"	Options:" << endl <<
 		"	-h | --help\t\t\tShow this help message" << endl <<
 		"	-t | --transform FILE_PATH\tFile path to transform file" << endl <<
@@ -77,6 +77,15 @@ int main(int argc, char** argv) {
 		}
 		else if (arg == "--disableMesh") {
 			skipMesh = true;
+		}
+	}
+
+	if (!calibrationMode && transformPath == "") {
+		cerr << "Warning: A transform file path was not provided, are you sure you want to continue? 'Y' / 'N'" << endl;
+		string input;
+		cin >> input;
+		if (input == "n" || input == "N") {
+			return 1;
 		}
 	}
 	

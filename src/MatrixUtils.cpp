@@ -51,6 +51,11 @@ vector<Ply> MatrixUtils::applyTransforms(vector<Ply> pointClouds, unordered_map<
 	// Match point clouds to transforms
 	// If a point cloud cannot be matched to a transform, assume it does not need to be transformed
 
+	// First check if transforms exist
+	if (transformations.size() == 0) {
+		return pointClouds;
+	}
+
 	// Initialize a new point cloud vector
 	vector<Ply> transformedPlys;
 
