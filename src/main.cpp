@@ -28,9 +28,6 @@ int main(int argc, char** argv) {
 	//std::string mkvDirectory = "F:\\DU COB\\Walk2";
 	//std::string transformFilePath = "F:\\DU COB\\Walk2\\trans2.txt";
 
-	std::string mkvDirectory = "E:\\Kinect Azure\\Captures";
-	std::string transformFilePath = "E:\\Kinect Azure\\CalFeb17Transv2.txt";
-
 	if (argc < 1) {
 		cerr << "Usage: project.exe transformFile recordingDirectory" << endl;
 		return -1;
@@ -39,22 +36,20 @@ int main(int argc, char** argv) {
 	//string transformFilePath = string(argv[1]);
 	//string mkvDirectory = string(argv[2]);
 
-	try {
-		return KinectAzureUtils::outputRecordingsToPlyFiles(mkvDirectory, transformFilePath, 250, true, false, true);
-	}
-	//Catches all exceptions - bad practice
-	catch (...) {
-		// ...
-	}
+	/*
+	// @ Eddy Rogers
+	std::string mkvDirectory = "E:\\Kinect Azure\\Captures";
+	std::string transformFilePath = "E:\\Kinect Azure\\CalFeb17Transv2.txt";
+	return KinectAzureUtils::outputRecordingsToPlyFiles(mkvDirectory, transformFilePath, 250, true, false, true);
+	*/
 
-	//
+
 	// Debug Only - For running PCL methods on a single point cloud file
 	//
 	// Read in Ply
 
-	/*
 	//ifstream ply("C:\\Users\\Jeremy\\git\\Kinect-Azure-Processor\\out\\build\\x64-Debug\\2cam.ply");
-	ifstream ply("C:\\Users\\Jeremy\\\Desktop\\DU COB\\MkvTestFiles\\Group150filtered.ply");
+	//ifstream ply("C:\\Users\\Jeremy\\\Desktop\\DU COB\\MkvTestFiles\\Group150filtered.ply");
 	string str;
 
 	bool proceed = false;
@@ -69,15 +64,13 @@ int main(int argc, char** argv) {
 
 	if (!proceed) {
 		return -1;
-=======
+
 	//std::string mkvDirectory = "C:\\Users\\Jeremy\\Desktop\\DU COB\\Walk";
 	//std::string transformFilePath = "C:\\Users\\Jeremy\\Desktop\\DU COB\\Walk\\CalApril29Trans.txt";
 
-	
 	if (argc < 2) {
 		usage(argv[0]);
 		return 1;
->>>>>>> master
 	}
 
 	string captureDirectory = argv[1];
@@ -133,6 +126,4 @@ int main(int argc, char** argv) {
 	}
 	
 	return KinectAzureUtils::outputRecordingsToPlyFiles(captureDirectory, transformPath, frame, calibrationMode, debugMode, skipMesh);
-
-	*/
 }
