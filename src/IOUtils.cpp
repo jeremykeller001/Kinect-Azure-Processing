@@ -26,6 +26,40 @@ bool IOUtils::endsWith(string const fileName, string const fileExtension) {
 	}
 }
 
+string IOUtils::extractFileName(string fileName) {
+	if (IOUtils::endsWith(fileName, ".mkv")) {
+		// Remove last 4 letters
+		fileName = fileName.substr(0, fileName.size() - 4);
+	}
+
+	// Search for last slash index
+	size_t lastSlashIndex;
+	size_t lastForwardSlashIndex = fileName.find_last_of("/");
+	size_t lastBackSlashIndex = fileName.find_last_of("\\");
+	if (lastForwardSlashIndex == string::npos) {
+		lastForwardSlashIndex = 9999;
+	}
+	if (lastBackSlashIndex == string::npos) {
+		lastBackSlashIndex = 9999;
+	}
+	if (lastBackSlashIndex < lastForwardSlashIndex) {
+		lastSlashIndex = lastBackSlashIndex;
+	}
+	else {
+		lastSlashIndex = lastForwardSlashIndex;
+	}
+
+	// Increment slash index by 1 so we only take the content after the slash
+	lastSlashIndex++;
+
+	// Only filter out last slash index if it below index 1000
+	if (lastSlashIndex < 1000 && lastSlashIndex < fileName.length()) {
+		fileName = fileName.substr(lastSlashIndex);
+	}
+
+	return fileName;
+}
+
 vector<string> IOUtils::obtainMkvFilesFromDirectory(string dirPath) {
 	vector<string> mkvFiles;
 	for (const auto& entry : boost::filesystem::directory_iterator(dirPath)) {

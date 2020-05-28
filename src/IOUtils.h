@@ -23,6 +23,7 @@ private:
 
 public:
 	static bool endsWith(std::string const fullString, std::string const ending);
+	static std::string IOUtils::extractFileName(std::string fileName);
 	static std::vector<std::string> obtainMkvFilesFromDirectory(std::string dirPath);
 	static std::unordered_map<std::string, Eigen::Matrix4Xd> readTransformationFile(std::string fileName);
 	static std::string obtainBodyTrackingFileSuffix(std::string fileName);
