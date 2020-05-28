@@ -114,7 +114,6 @@ bool BodyTrackingUtils::predictJoints(ptree* framesJson, int frameCount, k4abt_t
 		}
 		body_result_json.add_child("joint_orientations", joint_orientation_list);
 		body_result_json.add_child("joint_positions", joint_position__list);
-		body_result_json.add_child("joint_confidence", joint_confidence_list);
 
 		body_result_json.put("total_confidence", total_confidence);
 

@@ -9,6 +9,7 @@
 
 #include "KinectAzureUtils.h"
 #include "BodyTrackingUtils.h"
+#include <regex>
 
 
 #include <boost/property_tree/ptree.hpp>
@@ -527,8 +528,16 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 
 			jointOutputJson.add_child("frames", framesJson);
 
-			// Write to the file
-			boost::property_tree::json_parser::write_json(outfile, jointOutputJson);
+			std::ostringstream oss;
+			boost::property_tree::write_json(oss, jointOutputJson);
+			std::regex reg("\\\"([0-9\-]+\\.{0,1}[0-9]*)\\\"");
+			std::string result = std::regex_replace(oss.str(), reg, "$1");
+
+			std::ofstream file;
+			file.open(outfileName);
+			file << result;
+			file.close();
+
 			//boost::property_tree::json_parser::write_json(std::cout, jointOutputJson);
 			frame = 1000000;
 			break;
