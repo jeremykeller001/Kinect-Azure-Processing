@@ -10,43 +10,7 @@
       "buildCommandArgs": "-v",
       "ctestCommandArgs": "",
       "inheritEnvironments": [ "msvc_x64" ],
-      "variables": [
-        {
-          "name": "FLANN_INCLUDE_DIR",
-          "value": "C:/Program Files/PCL 1.10.1/3rdParty/FLANN/include",
-          "type": "PATH"
-        },
-        {
-          "name": "FLANN_LIBRARY",
-          "value": "C:/Program Files/PCL 1.10.1/3rdParty/FLANN/lib/flann.lib",
-          "type": "FILEPATH"
-        },
-        {
-          "name": "FLANN_LIBRARY_DEBUG",
-          "value": "C:/Program Files/PCL 1.10.1/3rdParty/FLANN/lib/flann_cpp_s-gd.lib",
-          "type": "FILEPATH"
-        },
-        {
-          "name": "QHULL_LIBRARY",
-          "value": "C:/Program Files/PCL 1.10.1/3rdParty/Qhull/lib/qhullstatic.lib",
-          "type": "FILEPATH"
-        },
-        {
-          "name": "QHULL_LIBRARY_DEBUG",
-          "value": "C:/Program Files/PCL 1.10.1/3rdParty/Qhull/lib/qhullstatic_d.lib",
-          "type": "FILEPATH"
-        },
-        {
-          "name": "VTK_DIR",
-          "value": "C:/Program Files/PCL 1.10.1/3rdParty/VTK/lib/cmake/vtk-8.2",
-          "type": "PATH"
-        },
-        {
-          "name": "EIGEN_INCLUDE_DIR",
-          "value": "C:/Program Files/PCL 1.10.1/3rdParty/Eigen/eigen3",
-          "type": "PATH"
-        }
-      ]
+      "variables": []
     }
   ]
 }

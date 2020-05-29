@@ -28,43 +28,6 @@ int main(int argc, char** argv) {
 	//std::string mkvDirectory = "F:\\DU COB\\Walk2";
 	//std::string transformFilePath = "F:\\DU COB\\Walk2\\trans2.txt";
 
-	if (argc < 1) {
-		cerr << "Usage: project.exe transformFile recordingDirectory" << endl;
-		return -1;
-	}
-	
-	//string transformFilePath = string(argv[1]);
-	//string mkvDirectory = string(argv[2]);
-
-	/*
-	// @ Eddy Rogers
-	std::string mkvDirectory = "E:\\Kinect Azure\\Captures";
-	std::string transformFilePath = "E:\\Kinect Azure\\CalFeb17Transv2.txt";
-	return KinectAzureUtils::outputRecordingsToPlyFiles(mkvDirectory, transformFilePath, 250, true, false, true);
-	*/
-
-
-	// Debug Only - For running PCL methods on a single point cloud file
-	//
-	// Read in Ply
-
-	//ifstream ply("C:\\Users\\Jeremy\\git\\Kinect-Azure-Processor\\out\\build\\x64-Debug\\2cam.ply");
-	//ifstream ply("C:\\Users\\Jeremy\\\Desktop\\DU COB\\MkvTestFiles\\Group150filtered.ply");
-	string str;
-
-	bool proceed = false;
-
-	while (!ply.eof()) {
-		ply >> str;
-		if (str.compare("end_header") == 0) {
-			proceed = true;
-			break;
-		}
-	}
-
-	if (!proceed) {
-		return -1;
-
 	//std::string mkvDirectory = "C:\\Users\\Jeremy\\Desktop\\DU COB\\Walk";
 	//std::string transformFilePath = "C:\\Users\\Jeremy\\Desktop\\DU COB\\Walk\\CalApril29Trans.txt";
 

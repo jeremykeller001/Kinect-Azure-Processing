@@ -422,9 +422,7 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 	// Grab filenames to read in
 	std::vector<std::string> mkvFiles = IOUtils::obtainMkvFilesFromDirectory(dirPath);
 	std::unordered_map<std::string, Eigen::Matrix4Xd> transformations = IOUtils::readTransformationFile(transformFilePath);
-	//std::string btFileSuffix = IOUtils::obtainBodyTrackingFileSuffix(transformFilePath);
-
-	std::string btFileSuffix = "Sub2.mkv";
+	std::string btFileSuffix = IOUtils::obtainBodyTrackingFileSuffix(transformFilePath);
 
 	int fileCount = mkvFiles.size();
 	std::string masterFileSuffix = "Master.mkv";
