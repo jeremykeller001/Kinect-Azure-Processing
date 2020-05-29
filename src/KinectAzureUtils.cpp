@@ -506,7 +506,7 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 				outfileName = outfileName.append("\\joints.json");
 
 				// Open the file to write to
-				outfile.open(outfileName);
+				outfile.open(outfileName, ios::out | ios::trunc);
 
 				jointOutputJson.add_child("frames", framesJson);
 
