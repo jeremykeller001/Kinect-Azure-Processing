@@ -418,7 +418,7 @@ bool KinectAzureUtils::openFiles(KinectAzureUtils::recording_t** filess, k4a_cal
 	return result == K4A_RESULT_SUCCEEDED;
 }
 
-int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::string transformFilePath, int frameOutputNumber, bool calibrationMode, bool debugMode, bool skipMesh) {
+int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::string transformFilePath, int frameOutputNumber, bool calibrationMode, bool debugMode, bool skipMesh, bool bodyTrackingOnly) {
 	// Grab filenames to read in
 	std::vector<std::string> mkvFiles = IOUtils::obtainMkvFilesFromDirectory(dirPath);
 	std::unordered_map<std::string, Eigen::Matrix4Xd> transformations = IOUtils::readTransformationFile(transformFilePath);
@@ -445,6 +445,11 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 		return 1;
 	}
 
+	if (bodyTrackingOnly && tracker == NULL) {
+		cerr << "Error: Body tracking only argument was specified, but not body tracking file was specified in the transformation file. Ending processing." << endl;
+		return 1;
+	}
+
 	k4a_result_t result = K4A_RESULT_SUCCEEDED;
 
 	// Track frame indices 
@@ -467,7 +472,6 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 	// Assume all files are run with the same frame rate
 	uint64_t maxTimestampDiff = calibrations[0].depth_camera_calibration.resolution_height == 1024 ? timestampDiff15 : timestampDiff30;
 	std::vector<Ply> groupFrames;
-	bool individualFrameProcessed = false;
 
 	// Joint tracking variables
 	bool trackerCaptureFound = (tracker != NULL);
@@ -479,47 +483,63 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 	// Loop variables
 	int endThreshold = 3; // Number of consecutive frames without a master capture before we decide to end the processing
 	int missingFrameCount = 0; // Track the number of consecutive frames without all the captures
+	uint64_t frame = 0;
+	bool endProcessing = false;
+	bool individualFrameProcessed = false;
 
 	// Get frames in order
-	for (int frame = 0; frame < 1000000; frame++)
+	while(true)
 	{
 		// First check to see if master frame has not been found for a consecutive number of frames
 		// If individual frame is specified and has already been output, end processing
-		if (missingFrameCount >= endThreshold || individualFrameProcessed) {
+		if (endProcessing || missingFrameCount >= endThreshold) {
 			// If so, stop processing and exit
 			
-			// Create an output stream
-			std::ofstream outfile;
+			// Output joints json if tracker capture is in use
+			if (trackerCaptureFound) {
+				// Create an output stream
+				std::ofstream outfile;
 
-			// Remove Master.mkv
-			// Add .json
-			std::string outfileName = mkvFiles.at(0);
-			outfileName = outfileName.substr(0, outfileName.length() - 11);
-			outfileName = outfileName.append(".json");
+				// Remove Master.mkv
+				// Add .json
+				std::string outfileName = std::string(dirPath);
+				outfileName = outfileName.append("\\joints.json");
 
-			// Open the file to write to
-			outfile.open(outfileName);
+				// Open the file to write to
+				outfile.open(outfileName);
 
-			jointOutputJson.add_child("frames", framesJson);
+				jointOutputJson.add_child("frames", framesJson);
 
-			std::ostringstream oss;
-			boost::property_tree::write_json(oss, jointOutputJson);
-			std::regex reg("\\\"([0-9\-]+\\.{0,1}[0-9]*)\\\"");
-			std::string result = std::regex_replace(oss.str(), reg, "$1");
+				std::ostringstream oss;
+				boost::property_tree::write_json(oss, jointOutputJson);
+				std::regex reg("\\\"([0-9\-]+\\.{0,1}[0-9]*)\\\"");
+				std::string result = std::regex_replace(oss.str(), reg, "$1");
 
-			std::ofstream file;
-			file.open(outfileName);
-			file << result;
-			file.close();
+				std::ofstream file;
+				file.open(outfileName);
+				file << result;
+				file.close();
+			}
 
-			//boost::property_tree::json_parser::write_json(std::cout, jointOutputJson);
-			frame = 1000000;
+			break;
+		}
+		else if (individualFrameProcessed) {
+			// No need to write json when we are only processing a single frame
+			// Just break out of loop
 			break;
 		}
 
 		// Grab next frame
 		KinectAzureUtils::FrameInfo frameInfo = getNextFrame(fileCount, files);
 		
+		// Once the next frame is obtained, check if it is the end of the capture
+		// The file will be null is the capture has ended
+		if (frameInfo.file == NULL) {
+			// If the file is null, end processing and continue to the next iteration, where the json joints will be output if applicable
+			endProcessing;
+			continue;
+		}
+
 		// Increment the frame's counter
 		fileIndexCounter[frameInfo.file->filename] = fileIndexCounter[frameInfo.file->filename]++;
 
@@ -572,7 +592,10 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 							fileIndexCounter[frameInfo.file->filename] = fileIndexCounter[frameInfo.file->filename]--;
 
 							// Output combined point cloud
-							outputPointCloudGroup(groupFrames, groupCount, transformations, dirPath, joints, btFileSuffix, calibrationMode, debugMode, skipMesh);
+							// If body tracking only is specified, skip this output and only focus on joint tracking
+							if (!bodyTrackingOnly) {
+								outputPointCloudGroup(groupFrames, groupCount, transformations, dirPath, joints, btFileSuffix, calibrationMode, debugMode, skipMesh);
+							}
 
 							// Re-increment frame count since it will be accurate for the next group processing
 							fileIndexCounter[frameInfo.file->filename] = fileIndexCounter[frameInfo.file->filename]++;
@@ -615,7 +638,10 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 				// Add current frame to group
 				groupFrames.push_back(generatePointCloud(frameInfo, calibrations));
 
-				// If capture ends with body tracking suffix, also process joint tracking data
+				// If capture is the desired body tracking file, process joint tracking data
+				if (trackerCaptureFound && IOUtils::endsWith(frameInfo.file->filename, btFileSuffix) && !individualFrameProcessed) {
+					jointsObtained = BodyTrackingUtils::predictJoints(&framesJson, groupCount, tracker, frameInfo.file->capture, &joints);
+				}
 			}
 			else {
 				print_capture_info(frameInfo.file);
@@ -623,8 +649,8 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 				// Add current frame to group
 				groupFrames.push_back(generatePointCloud(frameInfo, calibrations));
 
-				// If capture is Sub2, process joint tracking data
-				if (trackerCaptureFound && IOUtils::endsWith(frameInfo.file->filename, btFileSuffix) && !individualFrameProcessed) {
+				// If capture is the desired body tracking file, process joint tracking data
+				if (trackerCaptureFound && IOUtils::endsWith(frameInfo.file->filename, btFileSuffix) && groupCount != 0) {
 					jointsObtained = BodyTrackingUtils::predictJoints(&framesJson, groupCount, tracker, frameInfo.file->capture, &joints);
 				}
 			}
@@ -641,6 +667,8 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 			result = K4A_RESULT_FAILED;
 			break;
 		}
+
+		frame++;
 	}
 
 	for (size_t i = 0; i < fileCount; i++)

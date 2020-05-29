@@ -21,16 +21,11 @@ void usage(char* projectName) {
 		"	-c | --calibration\t\tRun in calibration mode" << endl <<
 		"	-f | --frame FRAME\t\tSpecify to only output an individual frame (default: 15 in calibration mode)" << endl <<
 		"	-d | --debug\t\t\tEnable debug mode logging and outputs" << endl <<
-		"	--disableMesh\t\t\tIf specified, meshing functionality and output will be disabled" << endl;
+		"	--disableMesh\t\t\tIf specified, meshing functionality and output will be disabled" << endl <<
+		"   --bodyTrackingOnly\t\t\tIf specified, only body tracking joint locations will be output" << endl;
 }
 
 int main(int argc, char** argv) {
-	//std::string mkvDirectory = "F:\\DU COB\\Walk2";
-	//std::string transformFilePath = "F:\\DU COB\\Walk2\\trans2.txt";
-
-	//std::string mkvDirectory = "C:\\Users\\Jeremy\\Desktop\\DU COB\\Walk";
-	//std::string transformFilePath = "C:\\Users\\Jeremy\\Desktop\\DU COB\\Walk\\CalApril29Trans.txt";
-
 	if (argc < 2) {
 		usage(argv[0]);
 		return 1;
@@ -42,7 +37,8 @@ int main(int argc, char** argv) {
 	int frame = -1;
 	bool debugMode = false;
 	bool skipMesh = false;
-	for (int i = 1; i < argc; i++) {
+	bool bodyTrackingOnly = false;
+	for (int i = 2; i < argc; i++) {
 		string arg = argv[i];
 		if ((arg == "-h") || (arg == "--help")) {
 			usage(argv[0]);
@@ -77,6 +73,18 @@ int main(int argc, char** argv) {
 		else if (arg == "--disableMesh") {
 			skipMesh = true;
 		}
+		else if (arg == "--bodyTrackingOnly") {
+			bodyTrackingOnly = true;
+		}
+		else {
+			cerr << "Warning: unidentified argument sent in: " << arg << endl;
+			cerr << "Would you like to continue? 'Y' / 'N'";
+			string input;
+			cin >> input;
+			if (input == "n" || input == "N") {
+				return 1;
+			}
+		}
 	}
 
 	if (!calibrationMode && transformPath == "") {
@@ -88,5 +96,5 @@ int main(int argc, char** argv) {
 		}
 	}
 	
-	return KinectAzureUtils::outputRecordingsToPlyFiles(captureDirectory, transformPath, frame, calibrationMode, debugMode, skipMesh);
+	return KinectAzureUtils::outputRecordingsToPlyFiles(captureDirectory, transformPath, frame, calibrationMode, debugMode, skipMesh, bodyTrackingOnly);
 }
