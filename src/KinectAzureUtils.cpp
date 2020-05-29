@@ -9,6 +9,14 @@
 
 #include "KinectAzureUtils.h"
 #include "BodyTrackingUtils.h"
+#include <regex>
+
+
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/json_parser.hpp>
+#include <boost/filesystem.hpp>
+
+using boost::property_tree::ptree;
 
 // https://github.com/microsoft/Azure-Kinect-Sensor-SDK/blob/develop/examples/fastpointcloud/main.cpp
 void KinectAzureUtils::createXYTable(const k4a_calibration_t* calibration, k4a_image_t xy_table) {
@@ -464,6 +472,8 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 	// Joint tracking variables
 	bool trackerCaptureFound = (tracker != NULL);
 	bool jointsObtained = false;
+	std::vector<Eigen::RowVector3d> sub2Joints;
+	ptree jointOutputJson, framesJson;
 	std::vector<Eigen::RowVector3d> joints;
 
 	// Loop variables
@@ -477,6 +487,32 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 		// If individual frame is specified and has already been output, end processing
 		if (missingFrameCount >= endThreshold || individualFrameProcessed) {
 			// If so, stop processing and exit
+			
+			// Create an output stream
+			std::ofstream outfile;
+
+			// Remove Master.mkv
+			// Add .json
+			std::string outfileName = mkvFiles.at(0);
+			outfileName = outfileName.substr(0, outfileName.length() - 11);
+			outfileName = outfileName.append(".json");
+
+			// Open the file to write to
+			outfile.open(outfileName);
+
+			jointOutputJson.add_child("frames", framesJson);
+
+			std::ostringstream oss;
+			boost::property_tree::write_json(oss, jointOutputJson);
+			std::regex reg("\\\"([0-9\-]+\\.{0,1}[0-9]*)\\\"");
+			std::string result = std::regex_replace(oss.str(), reg, "$1");
+
+			std::ofstream file;
+			file.open(outfileName);
+			file << result;
+			file.close();
+
+			//boost::property_tree::json_parser::write_json(std::cout, jointOutputJson);
 			frame = 1000000;
 			break;
 		}
@@ -580,9 +616,6 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 				groupFrames.push_back(generatePointCloud(frameInfo, calibrations));
 
 				// If capture ends with body tracking suffix, also process joint tracking data
-				if (trackerCaptureFound && IOUtils::endsWith(frameInfo.file->filename, btFileSuffix) && !individualFrameProcessed) {
-					jointsObtained = BodyTrackingUtils::predictJoints(groupCount, tracker, frameInfo.file->capture, &joints);
-				}
 			}
 			else {
 				print_capture_info(frameInfo.file);
@@ -591,8 +624,8 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 				groupFrames.push_back(generatePointCloud(frameInfo, calibrations));
 
 				// If capture is Sub2, process joint tracking data
-				if (trackerCaptureFound && IOUtils::endsWith(frameInfo.file->filename, btFileSuffix)) {
-					jointsObtained = BodyTrackingUtils::predictJoints(groupCount, tracker, frameInfo.file->capture, &joints);
+				if (trackerCaptureFound && IOUtils::endsWith(frameInfo.file->filename, btFileSuffix) && !individualFrameProcessed) {
+					jointsObtained = BodyTrackingUtils::predictJoints(&framesJson, groupCount, tracker, frameInfo.file->capture, &joints);
 				}
 			}
 		}

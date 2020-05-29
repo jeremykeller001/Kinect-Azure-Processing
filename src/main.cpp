@@ -31,7 +31,6 @@ int main(int argc, char** argv) {
 	//std::string mkvDirectory = "C:\\Users\\Jeremy\\Desktop\\DU COB\\Walk";
 	//std::string transformFilePath = "C:\\Users\\Jeremy\\Desktop\\DU COB\\Walk\\CalApril29Trans.txt";
 
-	
 	if (argc < 2) {
 		usage(argv[0]);
 		return 1;
