@@ -15,14 +15,14 @@ using namespace std;
 
 void usage(char* projectName) {
 	cout << "Usage: " << projectName << " transform/file/path [options]" << endl <<
-		"	Options:" << endl <<
-		"	-h | --help\t\t\tShow this help message" << endl <<
-		"	-t | --transform FILE_PATH\tFile path to transform file" << endl <<
-		"	-c | --calibration\t\tRun in calibration mode" << endl <<
-		"	-f | --frame FRAME\t\tSpecify to only output an individual frame (default: 15 in calibration mode)" << endl <<
-		"	-d | --debug\t\t\tEnable debug mode logging and outputs" << endl <<
-		"	--disableMesh\t\t\tIf specified, meshing functionality and output will be disabled" << endl <<
-		"   --bodyTrackingOnly\t\t\tIf specified, only body tracking joint locations will be output" << endl;
+		"\tOptions:" << endl <<
+		"\t-h | --help\t\t\tShow this help message" << endl <<
+		"\t-t | --transform FILE_PATH\tFile path to transform file" << endl <<
+		"\t-c | --calibration\t\tRun in calibration mode" << endl <<
+		"\t-f | --frame FRAME\t\tSpecify to only output an individual frame (default: 15 in calibration mode)" << endl <<
+		"\t-d | --debug\t\t\tEnable debug mode logging and outputs" << endl <<
+		"\t--disableMesh\t\t\tIf specified, meshing functionality and output will be disabled" << endl <<
+		"\t--bodyTrackingOnly\t\tIf specified, only body tracking joint locations will be output" << endl;
 }
 
 int main(int argc, char** argv) {
@@ -38,7 +38,7 @@ int main(int argc, char** argv) {
 	bool debugMode = false;
 	bool skipMesh = false;
 	bool bodyTrackingOnly = false;
-	for (int i = 2; i < argc; i++) {
+	for (int i = 1; i < argc; i++) {
 		string arg = argv[i];
 		if ((arg == "-h") || (arg == "--help")) {
 			usage(argv[0]);
@@ -76,7 +76,7 @@ int main(int argc, char** argv) {
 		else if (arg == "--bodyTrackingOnly") {
 			bodyTrackingOnly = true;
 		}
-		else {
+		else if (i != 1) {
 			cerr << "Warning: unidentified argument sent in: " << arg << endl;
 			cerr << "Would you like to continue? 'Y' / 'N'";
 			string input;
