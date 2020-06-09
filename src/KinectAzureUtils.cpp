@@ -536,7 +536,7 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 		// The file will be null is the capture has ended
 		if (frameInfo.file == NULL) {
 			// If the file is null, end processing and continue to the next iteration, where the json joints will be output if applicable
-			endProcessing;
+			endProcessing = true;
 			continue;
 		}
 
