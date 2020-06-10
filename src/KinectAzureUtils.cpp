@@ -18,6 +18,8 @@
 
 using boost::property_tree::ptree;
 
+
+
 // https://github.com/microsoft/Azure-Kinect-Sensor-SDK/blob/develop/examples/fastpointcloud/main.cpp
 void KinectAzureUtils::createXYTable(const k4a_calibration_t* calibration, k4a_image_t xy_table) {
 	k4a_float2_t* table_data = (k4a_float2_t*)(void*)k4a_image_get_buffer(xy_table);
@@ -188,8 +190,19 @@ Ply KinectAzureUtils::generatePointCloud(KinectAzureUtils::FrameInfo frameInfo, 
 	return generatePly(frameInfo, xyTable);
 }
 
-void KinectAzureUtils::outputPointCloudGroup(std::vector<Ply> plys, uint64_t groupCount, std::unordered_map<std::string, Eigen::Matrix4Xd> transformations, 
-	std::string outputPath, std::vector<Eigen::RowVector3d> jointPositions, std::string bodyTrackingFileSuffix, bool calibrationMode, bool debugMode, bool skipMesh) {
+bool KinectAzureUtils::checkSubjectWithinCaptureSpace(std::vector<Eigen::RowVector3d> jointPositions, BodyTrackingUtils::BoundingBox captureSpaceBounds) {
+	// Check if all joint locations are contained within the capture space bounds. If not, then the frame should not be processed.
+	for (Eigen::RowVector3d jointPosition : jointPositions) {
+		if (!BodyTrackingUtils::withinBounds(jointPosition, captureSpaceBounds)) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+void KinectAzureUtils::outputPointCloudGroup(std::vector<Ply> plys, uint64_t groupCount, std::unordered_map<std::string, Eigen::Matrix4Xd> transformations,
+	std::vector<Eigen::RowVector3d> jointPositions, BodyTrackingUtils::BoundingBox captureSpaceBounds, std::string bodyTrackingFileSuffix) {
 
 	// Calculate different behavior settings:
 	bool individualOutputUnfiltered = debugMode || (calibrationMode && transformations.size() == 0);
@@ -221,7 +234,7 @@ void KinectAzureUtils::outputPointCloudGroup(std::vector<Ply> plys, uint64_t gro
 		if (debugMode) {
 			// Output individual json for frame
 			std::stringstream jointOutputName;
-			jointOutputName << outputPath << "\\Joints_" << groupCount << ".txt";
+			jointOutputName << captureDirectory << "\\Joints_" << groupCount << ".txt";
 			ofstream out;
 			out.open(jointOutputName.str(), ios::out);
 			for (Eigen::RowVector3d jointXYZ : jointPositions) {
@@ -231,12 +244,23 @@ void KinectAzureUtils::outputPointCloudGroup(std::vector<Ply> plys, uint64_t gro
 		}
 
 		// Apply transform to joint locations
+		// Check capture space bounding box
+		//	If there are any joints located outside of the capture space, the output will be skipped
 		// Create Bounding box
 		if (jointTransformFound) {
 			std::vector<Eigen::RowVector3d> jointPositionsTransformed = MatrixUtils::applyJointTrackingTransform(jointPositions, jointPositionTransformation);
+			if (!checkSubjectWithinCaptureSpace(jointPositionsTransformed, captureSpaceBounds)) {
+				std::cerr << "Subject is outside of capture space. Skipping output." << endl;
+				return;
+			}
 			boundingBox = BodyTrackingUtils::createBoundingBox(jointPositionsTransformed);
+
 		}
 		else {
+			if (!checkSubjectWithinCaptureSpace(jointPositions, captureSpaceBounds)) {
+				std::cerr << "Subject is outside of capture space. Skipping output." << endl;
+				return;
+			}
 			boundingBox = BodyTrackingUtils::createBoundingBox(jointPositions);
 		}
 
@@ -245,8 +269,9 @@ void KinectAzureUtils::outputPointCloudGroup(std::vector<Ply> plys, uint64_t gro
 	}
 	else {
 		// Case when there is no joint locations
-		// Create a default bounding box of the capture space
-		boundingBox = { -2000, 2000, -9999, 9999, 0, 3000 };
+
+		// Bounding box is just going to be the entire capture space bounds, since we do not have joint locations to isolate a subject
+		boundingBox = captureSpaceBounds;
 
 		// Skip filtering and meshing since the capture will not be isolated
 		filterAndMeshing = false;
@@ -280,7 +305,7 @@ void KinectAzureUtils::outputPointCloudGroup(std::vector<Ply> plys, uint64_t gro
 		if (pclCloudSingle->size() > 0 && individualOutputUnfiltered) {
 			pclCloudSingle->resize(pclCloudSingle->size());
 			std::stringstream singleFileName;
-			singleFileName << outputPath << "\\Unfiltered_IndividualPc_" << groupCount << "_" << individualFileNameIdentifier << ".pcd";
+			singleFileName << captureDirectory << "\\Unfiltered_IndividualPc_" << groupCount << "_" << individualFileNameIdentifier << ".pcd";
 			PclUtils::outputToFile(pclCloudSingle, singleFileName.str());
 		}
 
@@ -291,7 +316,7 @@ void KinectAzureUtils::outputPointCloudGroup(std::vector<Ply> plys, uint64_t gro
 		// For single frame output
 		if (filteredPc->size() > 0 && individualOutputFiltered) {
 			std::stringstream filteredFileName;
-			filteredFileName << outputPath << "\\IndividualPc_" << groupCount << "_" << individualFileNameIdentifier << ".pcd";
+			filteredFileName << captureDirectory << "\\IndividualPc_" << groupCount << "_" << individualFileNameIdentifier << ".pcd";
 			PclUtils::outputToFile(filteredPc, filteredFileName.str());
 		}
 
@@ -303,7 +328,7 @@ void KinectAzureUtils::outputPointCloudGroup(std::vector<Ply> plys, uint64_t gro
 	if (unprocessedMergedOutput) {
 		std::string pcFileName = std::string(outputFileName.str());
 		pcFileName += "_full.pcd";
-		std::string fullFilePath = std::string(outputPath);
+		std::string fullFilePath = std::string(captureDirectory);
 		fullFilePath += "\\";
 		fullFilePath += pcFileName;
 		PclUtils::outputToFile(pclCloudCombined, fullFilePath);
@@ -312,10 +337,10 @@ void KinectAzureUtils::outputPointCloudGroup(std::vector<Ply> plys, uint64_t gro
 	// Meshing
 	if (filterAndMeshing) {
 		std::string meshFileName = std::string(outputFileName.str());
-		std::string fullMeshPath = std::string(outputPath);
+		std::string fullMeshPath = std::string(captureDirectory);
 		fullMeshPath += "\\";
 		fullMeshPath += meshFileName;
-		PclUtils::resampleAndMesh(pclCloudCombined, fullMeshPath, skipMesh);
+		PclUtils::resampleAndMesh(pclCloudCombined, fullMeshPath, disableMeshOutput);
 	}
 }
 
@@ -418,11 +443,9 @@ bool KinectAzureUtils::openFiles(KinectAzureUtils::recording_t** filess, k4a_cal
 	return result == K4A_RESULT_SUCCEEDED;
 }
 
-int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::string transformFilePath, int frameOutputNumber, bool calibrationMode, bool debugMode, bool skipMesh, bool bodyTrackingOnly) {
+int KinectAzureUtils::outputRecordingsToPlyFiles(std::unordered_map<std::string, Eigen::Matrix4Xd> transformations, std::string btFileSuffix, BodyTrackingUtils::BoundingBox captureSpaceBounds) {
 	// Grab filenames to read in
-	std::vector<std::string> mkvFiles = IOUtils::obtainMkvFilesFromDirectory(dirPath);
-	std::unordered_map<std::string, Eigen::Matrix4Xd> transformations = IOUtils::readTransformationFile(transformFilePath);
-	std::string btFileSuffix = IOUtils::obtainBodyTrackingFileSuffix(transformFilePath);
+	std::vector<std::string> mkvFiles = IOUtils::obtainMkvFilesFromDirectory(captureDirectory);
 
 	int fileCount = mkvFiles.size();
 	std::string masterFileSuffix = "Master.mkv";
@@ -445,7 +468,7 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 		return 1;
 	}
 
-	if (bodyTrackingOnly && tracker == NULL) {
+	if (bodyTrackingOutputOnly && tracker == NULL) {
 		cerr << "Error: Body tracking only argument was specified, but not body tracking file was specified in the transformation file. Ending processing." << endl;
 		return 1;
 	}
@@ -502,7 +525,7 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 
 				// Remove Master.mkv
 				// Add .json
-				std::string outfileName = std::string(dirPath);
+				std::string outfileName = std::string(captureDirectory);
 				outfileName = outfileName.append("\\joints.json");
 
 				// Open the file to write to
@@ -585,7 +608,7 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 
 					// Only process group if it contains all frames along with body tracking* (only if tracker capture exists)
 					if (groupFrames.size() == fileCount && (!trackerCaptureFound || jointsObtained)) {
-						if (frameOutputNumber == -1 || groupCount >= frameOutputNumber) {
+						if (individualFrameIndex == -1 || groupCount >= individualFrameIndex) {
 							missingFrameCount = 0;
 
 							// Decrement frame count for the current frame, this will not be processed and outputted
@@ -593,14 +616,14 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 
 							// Output combined point cloud
 							// If body tracking only is specified, skip this output and only focus on joint tracking
-							if (!bodyTrackingOnly) {
-								outputPointCloudGroup(groupFrames, groupCount, transformations, dirPath, joints, btFileSuffix, calibrationMode, debugMode, skipMesh);
+							if (!bodyTrackingOutputOnly) {
+								outputPointCloudGroup(groupFrames, groupCount, transformations, joints, captureSpaceBounds, btFileSuffix);
 							}
 
 							// Re-increment frame count since it will be accurate for the next group processing
 							fileIndexCounter[frameInfo.file->filename] = fileIndexCounter[frameInfo.file->filename]++;
 
-							if (frameOutputNumber > 0) {
+							if (individualFrameIndex > 0) {
 								individualFrameProcessed = true;
 							}
 						}
@@ -608,13 +631,13 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::string dirPath, std::strin
 					else if (groupFrames.size() < fileCount) {
 						missingFrameCount++;
 						std::cerr << "Frames missing for group " << groupCount << ". Skipping." << std::endl;
-						if (groupCount == frameOutputNumber) {
+						if (groupCount == individualFrameIndex) {
 							std::cerr << "Frames missing for specified output frame: " << groupCount << ". Next available set of frames will be output." << std::endl;
 						}
 					}
 					else if (trackerCaptureFound && !jointsObtained) {
 						std::cerr << "Body tracking missing for group " << groupCount << ". Skipping." << std::endl;
-						if (groupCount == frameOutputNumber) {
+						if (groupCount == individualFrameIndex) {
 							std::cerr << "Body tracking missing for specified output frame: " << groupCount << ". Next available set of frames will be output." << std::endl;
 						}
 					}
