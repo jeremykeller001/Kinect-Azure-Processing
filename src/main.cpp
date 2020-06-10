@@ -95,6 +95,18 @@ int main(int argc, char** argv) {
 			return 1;
 		}
 	}
-	
-	return KinectAzureUtils::outputRecordingsToPlyFiles(captureDirectory, transformPath, frame, calibrationMode, debugMode, skipMesh, bodyTrackingOnly);
+
+	// Obtain Eigen transforms, body tracking suffix, and capture space bounds if exists
+	std::string bodyTrackingFileSuffix = IOUtils::obtainBodyTrackingFileSuffix(transformPath);
+	BodyTrackingUtils::BoundingBox captureSpaceBounds = IOUtils::obtainCaptureSpaceBounds(transformPath);
+	unordered_map<string, Eigen::Matrix4Xd> transforms = IOUtils::readTransformationFile(transformPath);
+
+	// Create KinectAzureUtils object and process captures
+	KinectAzureUtils kinectAzureUtils(captureDirectory);
+	kinectAzureUtils.setBodyTrackingOutputOnly(bodyTrackingOnly);
+	kinectAzureUtils.setCalibrationMode(calibrationMode);
+	kinectAzureUtils.setDebugMode(debugMode);
+	kinectAzureUtils.setDisableMeshOutput(skipMesh);
+	kinectAzureUtils.setIndividualFrameIndex(frame);
+	return kinectAzureUtils.outputRecordingsToPlyFiles(transforms, bodyTrackingFileSuffix, captureSpaceBounds);
 }
