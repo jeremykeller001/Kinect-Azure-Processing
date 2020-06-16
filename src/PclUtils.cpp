@@ -134,9 +134,24 @@ void PclUtils::resampleAndMesh(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, std::s
 	fillHolesFilter->SetHoleSize(50.0); // Fill holes up to 50mm
 	fillHolesFilter->Update();
 
-	vtkSmartPointer<vtkPolyData> polyData = fillHolesFilter->GetOutput();
+	// Make the triangle winding order consistent now that hole filling is complete
+	vtkSmartPointer<vtkPolyDataNormals> normals =
+		vtkSmartPointer<vtkPolyDataNormals>::New();
+	normals->SetInputData(fillHolesFilter->GetOutput());
+	normals->ConsistencyOn();
+	normals->SplittingOff();
+	normals->Update();
 
-	pcl::VTKUtils::vtk2mesh(polyData, triangles);
+	vtkSmartPointer<vtkSmoothPolyDataFilter> smoothFilter =
+		vtkSmartPointer<vtkSmoothPolyDataFilter>::New();
+	smoothFilter->SetNumberOfIterations(100);
+	smoothFilter->SetInputData(normals->GetOutput());
+	smoothFilter->SetRelaxationFactor(0.05);
+	smoothFilter->FeatureEdgeSmoothingOff();
+	smoothFilter->BoundarySmoothingOn();
+	smoothFilter->Update();
+
+	pcl::VTKUtils::vtk2mesh(smoothFilter->GetOutput(), triangles);
 	
 	pcl::io::saveOBJFile(outputName + ".obj", triangles);
 
