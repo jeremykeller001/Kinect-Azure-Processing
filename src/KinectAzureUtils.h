@@ -21,10 +21,10 @@
 #include <stdio.h>
 #include <malloc.h>
 #include <vector>
-#include "IOUtils.h"
-#include "Ply.h"
+#include "BodyTrackingUtils.h"
 #include "IOUtils.h"
 #include "MatrixUtils.h"
+#include "Ply.h"
 
 #ifndef KINECT_AZURE_UTILS_H
 #define KINECT_AZURE_UTILS_H
@@ -32,6 +32,13 @@
 class KinectAzureUtils
 {
 private:
+	std::string captureDirectory;
+	int individualFrameIndex;
+	bool calibrationMode;
+	bool debugMode;
+	bool disableMeshOutput;
+	bool bodyTrackingOutputOnly;
+
 	static const uint64_t timestampDiff15 = 66000;
 	static const uint64_t timestampDiff30 = 33000;
 
@@ -72,27 +79,53 @@ public:
 	} FrameInfo;
 
 private:
-	static std::string getStartRecording(recording_t* files, std::vector<CalibrationInfo> frameInfo, int fileCount);
+	std::string getStartRecording(recording_t* files, std::vector<CalibrationInfo> frameInfo, int fileCount);
 
-	static void createXYTable(const k4a_calibration_t* calibration, k4a_image_t xy_table);
+	void createXYTable(const k4a_calibration_t* calibration, k4a_image_t xy_table);
 
 	// For debugging
-	static void print_capture_info(recording_t* file);
+	void print_capture_info(recording_t* file);
 
-	static uint64_t first_capture_timestamp(k4a_capture_t capture);
+	uint64_t first_capture_timestamp(k4a_capture_t capture);
 
-	static FrameInfo getNextFrame(int fileCount, recording_t* files);
+	FrameInfo getNextFrame(int fileCount, recording_t* files);
 
-	static Ply generatePly(FrameInfo frameInfo, const k4a_image_t xyTable);
+	Ply generatePly(FrameInfo frameInfo, const k4a_image_t xyTable);
 
-	static Ply generatePointCloud(FrameInfo frameInfo, k4a_calibration_t* calibrations);
+	Ply generatePointCloud(FrameInfo frameInfo, k4a_calibration_t* calibrations);
 
-	static void outputPointCloudGroup(std::vector<Ply> plys, uint64_t groupCount, std::unordered_map<std::string, Eigen::Matrix4Xd> transformations, 
-		std::string outputPath, std::vector<Eigen::RowVector3d> jointPositions, std::string bodyTrackingFileSuffix, bool calibrationMode, bool debugMode, bool skipMesh);
+	bool checkSubjectWithinCaptureSpace(std::vector<Eigen::RowVector3d> jointPositions, BodyTrackingUtils::BoundingBox captureSpaceBounds);
 
-	static bool openFiles(KinectAzureUtils::recording_t** files, k4a_calibration_t** calibrations, k4abt_tracker_t& tracker, std::vector<std::string> mkvFiles, std::string btFileSuffix);
+	void outputPointCloudGroup(std::vector<Ply> plys, uint64_t groupCount, std::unordered_map<std::string, Eigen::Matrix4Xd> transformations, 
+		std::vector<Eigen::RowVector3d> jointPositions, BodyTrackingUtils::BoundingBox captureSpaceBounds, std::string bodyTrackingFileSuffix);
+
+	bool openFiles(KinectAzureUtils::recording_t** files, k4a_calibration_t** calibrations, k4abt_tracker_t& tracker, std::vector<std::string> mkvFiles, std::string btFileSuffix);
 
 public:
-	static int outputRecordingsToPlyFiles(std::string dirPath, std::string transformPath, int frameOutputNumber, bool calibrationMode, bool debugMode, bool skipMesh);
+	KinectAzureUtils(std::string captureDir) {
+		captureDirectory = captureDir;
+	}
+
+	void setIndividualFrameIndex(int frameIndex) {
+		individualFrameIndex = frameIndex;
+	}
+
+	void setCalibrationMode(bool cal) {
+		calibrationMode = cal;
+	}
+
+	void setDebugMode(bool debug) {
+		debugMode = debug;
+	}
+
+	void setDisableMeshOutput(bool disableMesh) {
+		disableMeshOutput = disableMesh;
+	}
+
+	void setBodyTrackingOutputOnly(bool bodyTrackingOnly) {
+		bodyTrackingOutputOnly = bodyTrackingOnly;
+	}
+
+	int outputRecordingsToPlyFiles(std::unordered_map<std::string, Eigen::Matrix4Xd> transformations, std::string btFileSuffix, BodyTrackingUtils::BoundingBox captureSpaceBounds);
 };
 #endif

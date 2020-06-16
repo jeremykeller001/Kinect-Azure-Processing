@@ -25,8 +25,6 @@
 #include <pcl/point_types.h>
 
 #include "BodyTrackingHelpers.h"
-#include "KinectAzureUtils.h"
-#include "MatrixUtils.h"
 
 #ifndef BODY_TRACKING_UTILS_H
 #define BODY_TRACKING_UTILS_H
@@ -46,8 +44,6 @@ public:
 	};
 
 	static bool predictJoints(boost::property_tree::ptree* jsonFrames, int frameCount, k4abt_tracker_t tracker, k4a_capture_t capture_handle, std::vector<Eigen::RowVector3d>* jointPositions);
-
-	//static void outputJoints(int frameCount, k4a_float3_t jointPositions);
 
 	static BoundingBox createBoundingBox(std::vector<Eigen::RowVector3d> jointPositions);
 

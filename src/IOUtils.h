@@ -12,6 +12,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include "BodyTrackingUtils.h"
 
 #ifndef IO_UTILS_H
 #define IO_UTILS_H
@@ -20,6 +21,7 @@ class IOUtils
 {
 private:
 	static Eigen::RowVector4d readTransformLine(std::string line);
+	static void populateBounds(BodyTrackingUtils::BoundingBox* bounds, std::string line);
 
 public:
 	static bool endsWith(std::string const fullString, std::string const ending);
@@ -27,6 +29,7 @@ public:
 	static std::vector<std::string> obtainMkvFilesFromDirectory(std::string dirPath);
 	static std::unordered_map<std::string, Eigen::Matrix4Xd> readTransformationFile(std::string fileName);
 	static std::string obtainBodyTrackingFileSuffix(std::string fileName);
+	static BodyTrackingUtils::BoundingBox obtainCaptureSpaceBounds(std::string fileName);
 };
 #endif 
 

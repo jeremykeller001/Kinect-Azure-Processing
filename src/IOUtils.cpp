@@ -152,3 +152,51 @@ std::string IOUtils::obtainBodyTrackingFileSuffix(std::string fileName) {
 
 	return fileNameSuffix;
 }
+
+void IOUtils::populateBounds(BodyTrackingUtils::BoundingBox* bounds, string line) {
+	// Read line and determine whether it is an x, y, or z bound
+	// Format will be: "X {xMin} {xMax}"
+	istringstream iss(line);
+	char identifier;
+	double min;
+	double max;
+	iss >> identifier >> min >> max;
+
+	if (identifier == 'X' || identifier == 'x') {
+		bounds->xMin = min;
+		bounds->xMax = max;
+	}
+	else if (identifier == 'Y' || identifier == 'y') {
+		bounds->yMin = min;
+		bounds->yMax = max;
+	}
+	else if (identifier == 'Z' || identifier == 'z') {
+		bounds->zMin = min;
+		bounds->zMax = max;
+	}
+}
+
+BodyTrackingUtils::BoundingBox IOUtils::obtainCaptureSpaceBounds(string fileName) {
+	// If there is no file name, create a generic bounding box
+	BodyTrackingUtils::BoundingBox bounds = { -9999, 9999, -9999, 9999, -9999, 9999 };
+	if (fileName == "") {
+		return bounds;
+	}
+
+	string startChars = "---";
+	ifstream infile(fileName);
+	string line;
+	while (getline(infile, line)) {
+		if (line.compare(startChars) == 0) {
+			// Assume the next lines correspond to XYZ min/max coordinates
+			for (int i = 0; i < 3; i++) {
+				if (getline(infile, line)) {
+					populateBounds(&bounds, line);
+				}
+			}
+		}
+	}
+
+	return bounds;
+}
+
