@@ -70,10 +70,13 @@ bool BodyTrackingUtils::predictJoints(ptree* framesJson, int frameCount, k4abt_t
 		for (int j = 0; j < (int)K4ABT_JOINT_COUNT; j++)
 		{
 			int confidenceLevel = skeleton.joints[j].confidence_level;
+
+			/*
 			if (confidenceLevel == 0 || skeleton.joints[j].position.xyz.z > 10000 || skeleton.joints[j].position.xyz.z < 0) {
 				// Do not process joint with confidence level of 0
 				continue;
 			}
+			*/
 
 			//Insert the joint poistion into the array
 			Eigen::RowVector3d jointPosition;
@@ -110,7 +113,6 @@ bool BodyTrackingUtils::predictJoints(ptree* framesJson, int frameCount, k4abt_t
 
 			joint_position__list.push_back(std::make_pair("", joint_positions_json));
 			joint_orientation_list.push_back(std::make_pair("", joint_orientations_json));
-			joint_confidence_json.push_back(std::make_pair("", joint_orientations_json));
 		}
 		body_result_json.add_child("joint_orientations", joint_orientation_list);
 		body_result_json.add_child("joint_positions", joint_position__list);
