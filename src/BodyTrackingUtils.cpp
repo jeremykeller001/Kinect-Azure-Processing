@@ -89,7 +89,7 @@ bool BodyTrackingUtils::predictJoints(ptree* framesJson, int frameCount, k4abt_t
 
 			pos_x.put("", skeleton.joints[j].position.xyz.x);
 			pos_y.put("", skeleton.joints[j].position.xyz.y);
-			pos_z.put("", skeleton.joints[j].position.xyz.y);
+			pos_z.put("", skeleton.joints[j].position.xyz.z);
 
 			joint_positions_json.push_back(std::make_pair("", pos_x));
 			joint_positions_json.push_back(std::make_pair("", pos_y));
