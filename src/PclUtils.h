@@ -26,6 +26,9 @@
 #ifndef PCL_UTILS_H
 #define PCL_UTILS_H
 
+/**
+* Static methods related to PCL point cloud manipulation using PCL library methods
+*/
 class PclUtils
 {
 public:
