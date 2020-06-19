@@ -29,18 +29,54 @@
 class PclUtils
 {
 public:
-	static pcl::PointCloud<pcl::PointXYZ>::Ptr convertPlyToPointCloud(Ply pointCloud);
-	static pcl::PCLPointCloud2 convertPlyToPointCloud2(Ply pointCloud);
-	static Ply convertPcdToPly(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
 
-	static void applyStatisticalOutlierFilter(Ply inCloud, pcl::PointCloud<pcl::PointXYZ>::Ptr filteredCloud);
-
-	static void applyStatisticalOutlierFilter(pcl::PointCloud<pcl::PointXYZ>::Ptr inCloud, pcl::PointCloud<pcl::PointXYZ>::Ptr outCloud);
-
-	static void resampleAndMesh(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, std::string outputName, bool skipMesh);
-
+	/**
+	* Outputs a PCL point cloud to the specified file name
+	*
+	* @parma cloud Point cloud to output
+	* @param fileName Name of the file to output. This can be a full file path. This must include the .pcd file extension.
+	*/
 	static void outputToFile(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, std::string fileName);
 
+	/**
+	* Converts a Ply point cloud object to a PCL Point Cloud
+	*
+	* @param pointCloud Point cloud to convert
+	* @return converted point cloud
+	*/
+	static pcl::PointCloud<pcl::PointXYZ>::Ptr convertPlyToPointCloud(Ply pointCloud);
+
+	/**
+	* Converts a PCL point cloud back to a Ply point cloud object
+	*
+	* @param cloud Point cloud to convert
+	* @return Converted point cloud
+	*/
+	static Ply convertPcdToPly(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
+
+	/**
+	* Applies a statistical outlier filter to a point cloud, removing outlier points
+	*
+	* @param inCloud Point cloud to filter
+	* @param outCloud Container which will receive the filtered point cloud
+	*/
+	static void applyStatisticalOutlierFilter(pcl::PointCloud<pcl::PointXYZ>::Ptr inCloud, pcl::PointCloud<pcl::PointXYZ>::Ptr outCloud);
+
+	/**
+	* Downsamples a point cloud, resamples it using a moving least squares algorithm, then outputs the point cloud and generates a mesh .obj output for it
+	*
+	* cloud Point cloud to process
+	* outputName Full file path with name, no file extension
+	* skipMesh Whether or not the mesh output should be skipped. Skipping it will drastically reduce processing time.
+	*/
+	static void resampleAndMesh(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, std::string outputName, bool skipMesh);
+
+	/**
+	* Downsamples a point cloud. Useful to even out the point density variance of multiple Kinect cameras with differing distances from the capture subject
+	*
+	* @param inCloud Point cloud to downsample
+	* @param outCloud Container which will receive the downsampled point cloud
+	*/
 	static void downsample(pcl::PointCloud<pcl::PointXYZ>::Ptr inCloud, pcl::PointCloud<pcl::PointXYZ>::Ptr outCloud);
 };
 #endif

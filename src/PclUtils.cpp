@@ -16,14 +16,6 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr PclUtils::convertPlyToPointCloud(Ply pointCl
 	return cloud;
 }
 
-pcl::PCLPointCloud2 PclUtils::convertPlyToPointCloud2(Ply pointCloud) {
-	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud = convertPlyToPointCloud(pointCloud);
-
-	pcl::PCLPointCloud2 pc2;
-	pcl::toPCLPointCloud2(*cloud, pc2);
-	return pc2;
-}
-
 Ply PclUtils::convertPcdToPly(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud) {
 	Ply outCloud;
 	for (pcl::PointXYZ point : cloud->points) {
@@ -31,13 +23,6 @@ Ply PclUtils::convertPcdToPly(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud) {
 	}
 
 	return outCloud;
-}
-
-void PclUtils::applyStatisticalOutlierFilter(Ply cloud, pcl::PointCloud<pcl::PointXYZ>::Ptr filteredCloud) {
-	pcl::PointCloud<pcl::PointXYZ>::Ptr pclCloud = PclUtils::convertPlyToPointCloud(cloud);
-
-	PclUtils::applyStatisticalOutlierFilter(pclCloud, filteredCloud);
-	delete& pclCloud;
 }
 
 void PclUtils::applyStatisticalOutlierFilter(pcl::PointCloud<pcl::PointXYZ>::Ptr inCloud, pcl::PointCloud<pcl::PointXYZ>::Ptr outCloud) {
