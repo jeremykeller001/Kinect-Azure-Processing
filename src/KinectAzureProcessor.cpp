@@ -7,10 +7,9 @@
 //
 
 
-#include "KinectAzureUtils.h"
+#include "KinectAzureProcessor.h"
 #include "BodyTrackingUtils.h"
 #include <regex>
-
 
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
@@ -18,68 +17,7 @@
 
 using boost::property_tree::ptree;
 
-// https://github.com/microsoft/Azure-Kinect-Sensor-SDK/blob/develop/examples/fastpointcloud/main.cpp
-void KinectAzureUtils::createXYTable(const k4a_calibration_t* calibration, k4a_image_t xy_table) {
-	k4a_float2_t* table_data = (k4a_float2_t*)(void*)k4a_image_get_buffer(xy_table);
-
-	int width = calibration->depth_camera_calibration.resolution_width;
-	int height = calibration->depth_camera_calibration.resolution_height;
-
-	k4a_float2_t p;
-	k4a_float3_t ray;
-	int valid;
-
-	for (int y = 0, idx = 0; y < height; y++)
-	{
-		p.xy.y = (float)y;
-		for (int x = 0; x < width; x++, idx++)
-		{
-			p.xy.x = (float)x;
-
-			k4a_calibration_2d_to_3d(
-				calibration, &p, 1.f, K4A_CALIBRATION_TYPE_DEPTH, K4A_CALIBRATION_TYPE_DEPTH, &ray, &valid);
-
-			if (valid)
-			{
-				table_data[idx].xy.x = ray.xyz.x;
-				table_data[idx].xy.y = ray.xyz.y;
-			}
-			else
-			{
-				table_data[idx].xy.x = nanf("");
-				table_data[idx].xy.y = nanf("");
-			}
-		}
-	}
-}
-
-Ply KinectAzureUtils::generatePly(KinectAzureUtils::FrameInfo frameInfo, const k4a_image_t xy_table)
-{
-	const k4a_image_t depthImage = k4a_capture_get_depth_image(frameInfo.file->capture);
-	int width = k4a_image_get_width_pixels(depthImage);
-	int height = k4a_image_get_height_pixels(depthImage);
-
-	uint16_t* depth_data = (uint16_t*)(void*)k4a_image_get_buffer(depthImage);
-	k4a_float2_t* xy_table_data = (k4a_float2_t*)(void*)k4a_image_get_buffer(xy_table);
-
-	Ply ply = Ply();
-	ply.setFileName(frameInfo.file->filename);
-	for (int i = 0; i < width * height; i++)
-	{
-		if (depth_data[i] != 0 && !isnan(xy_table_data[i].xy.x) && !isnan(xy_table_data[i].xy.y))
-		{
-			Eigen::RowVector3d point;
-			point(0) = xy_table_data[i].xy.x * (float)depth_data[i];
-			point(1) = xy_table_data[i].xy.y * (float)depth_data[i];
-			point(2) = (float)depth_data[i];
-			ply.addPoint(point);
-		}
-	}
-
-	return ply;
-}
-
-void KinectAzureUtils::print_capture_info(recording_t* file)
+void KinectAzureProcessor::print_capture_info(recording_t* file)
 {
 	k4a_image_t image = k4a_capture_get_depth_image(file->capture);
 
@@ -99,14 +37,14 @@ void KinectAzureUtils::print_capture_info(recording_t* file)
 	printf("\n");
 }
 
-uint64_t KinectAzureUtils::first_capture_timestamp(k4a_capture_t capture)
+uint64_t KinectAzureProcessor::first_capture_timestamp(k4a_capture_t capture)
 {
 	uint64_t timestamp = k4a_image_get_device_timestamp_usec(k4a_capture_get_depth_image(capture));
 	k4a_image_release(k4a_capture_get_depth_image(capture));
 	return timestamp;
 }
 
-std::string KinectAzureUtils::getStartRecording(recording_t* files, std::vector<CalibrationInfo> frameInfo, int fileCount) {
+std::string KinectAzureProcessor::getStartRecording(recording_t* files, std::vector<CalibrationInfo> frameInfo, int fileCount) {
 	std::unordered_map<uint64_t, TimestampCounter> timestampDifferenceCounts;
 
 	// Count the occurences of each timestamp difference
@@ -150,9 +88,9 @@ std::string KinectAzureUtils::getStartRecording(recording_t* files, std::vector<
 	return timestampDifferenceCounts.at(maxTimestampDiff).fileName;
 }
 
-KinectAzureUtils::FrameInfo KinectAzureUtils::getNextFrame(int fileCount, recording_t* files) {
+KinectAzureProcessor::FrameInfo KinectAzureProcessor::getNextFrame(int fileCount, recording_t* files) {
 	uint64_t minTimestamp = (uint64_t)-1;
-	KinectAzureUtils::recording_t* nextFile = NULL;
+	KinectAzureProcessor::recording_t* nextFile = NULL;
 
 	int index = 0;
 	// Find the lowest timestamp out of each of the current captures.
@@ -173,7 +111,7 @@ KinectAzureUtils::FrameInfo KinectAzureUtils::getNextFrame(int fileCount, record
 	return {index, minTimestamp, nextFile};
 }
 
-Ply KinectAzureUtils::generatePointCloud(KinectAzureUtils::FrameInfo frameInfo, k4a_calibration_t* calibrations) {
+Ply KinectAzureProcessor::generatePointCloud(KinectAzureProcessor::FrameInfo frameInfo, k4a_calibration_t* calibrations) {
 	// Generate xy table
 	k4a_image_t xyTable = NULL;
 
@@ -183,12 +121,68 @@ Ply KinectAzureUtils::generatePointCloud(KinectAzureUtils::FrameInfo frameInfo, 
 		calibrations[frameInfo.index].depth_camera_calibration.resolution_width * (int)sizeof(k4a_float2_t),
 		&xyTable);
 
-	createXYTable(&calibrations[frameInfo.index], xyTable);
 
-	return generatePly(frameInfo, xyTable);
+	// Create xy table
+	k4a_float2_t* table_data = (k4a_float2_t*)(void*)k4a_image_get_buffer(xyTable);
+
+
+	int width = calibrations[frameInfo.index].depth_camera_calibration.resolution_width;
+	int height = calibrations[frameInfo.index].depth_camera_calibration.resolution_height;
+
+	k4a_float2_t p;
+	k4a_float3_t ray;
+	int valid;
+
+	for (int y = 0, idx = 0; y < height; y++)
+	{
+		p.xy.y = (float)y;
+		for (int x = 0; x < width; x++, idx++)
+		{
+			p.xy.x = (float)x;
+
+			k4a_calibration_2d_to_3d(
+				&calibrations[frameInfo.index], &p, 1.f, K4A_CALIBRATION_TYPE_DEPTH, K4A_CALIBRATION_TYPE_DEPTH, &ray, &valid);
+
+			if (valid)
+			{
+				table_data[idx].xy.x = ray.xyz.x;
+				table_data[idx].xy.y = ray.xyz.y;
+			}
+			else
+			{
+				table_data[idx].xy.x = nanf("");
+				table_data[idx].xy.y = nanf("");
+			}
+		}
+	}
+
+	// Generate point cloud
+	const k4a_image_t depthImage = k4a_capture_get_depth_image(frameInfo.file->capture);
+	int depthWidth = k4a_image_get_width_pixels(depthImage);
+	int depthHeight = k4a_image_get_height_pixels(depthImage);
+
+	uint16_t* depth_data = (uint16_t*)(void*)k4a_image_get_buffer(depthImage);
+	k4a_float2_t* xy_table_data = (k4a_float2_t*)(void*)k4a_image_get_buffer(xyTable);
+
+	Ply ply = Ply();
+	ply.setFileName(frameInfo.file->filename);
+	for (int i = 0; i < depthWidth * depthHeight; i++)
+	{
+		if (depth_data[i] != 0 && !isnan(xy_table_data[i].xy.x) && !isnan(xy_table_data[i].xy.y))
+		{
+			Eigen::RowVector3d point;
+			point(0) = xy_table_data[i].xy.x * (float)depth_data[i];
+			point(1) = xy_table_data[i].xy.y * (float)depth_data[i];
+			point(2) = (float)depth_data[i];
+			ply.addPoint(point);
+		}
+	}
+
+	return ply;
+
 }
 
-bool KinectAzureUtils::checkSubjectWithinCaptureSpace(std::vector<Eigen::RowVector3d> jointPositions, BodyTrackingUtils::BoundingBox captureSpaceBounds) {
+bool KinectAzureProcessor::checkSubjectWithinCaptureSpace(std::vector<Eigen::RowVector3d> jointPositions, BodyTrackingUtils::BoundingBox captureSpaceBounds) {
 	// Check if all joint locations are contained within the capture space bounds. If not, then the frame should not be processed.
 	for (Eigen::RowVector3d jointPosition : jointPositions) {
 		if (!BodyTrackingUtils::withinBounds(jointPosition, captureSpaceBounds)) {
@@ -199,7 +193,7 @@ bool KinectAzureUtils::checkSubjectWithinCaptureSpace(std::vector<Eigen::RowVect
 	return true;
 }
 
-void KinectAzureUtils::outputPointCloudGroup(std::vector<Ply> plys, uint64_t groupCount, std::unordered_map<std::string, Eigen::Matrix4Xd> transformations,
+void KinectAzureProcessor::outputPointCloudGroup(std::vector<Ply> plys, uint64_t groupCount, std::unordered_map<std::string, Eigen::Matrix4Xd> transformations,
 	std::vector<Eigen::RowVector3d> jointPositions, BodyTrackingUtils::BoundingBox captureSpaceBounds, std::string bodyTrackingFileSuffix) {
 
 	// Calculate different behavior settings:
@@ -342,13 +336,13 @@ void KinectAzureUtils::outputPointCloudGroup(std::vector<Ply> plys, uint64_t gro
 	}
 }
 
-bool KinectAzureUtils::openFiles(KinectAzureUtils::recording_t** filess, k4a_calibration_t** calibrationss, k4abt_tracker_t &tracker, std::vector<std::string> mkvFiles, std::string btFileSuffix) {
+bool KinectAzureProcessor::openFiles(KinectAzureProcessor::recording_t** filess, k4a_calibration_t** calibrationss, k4abt_tracker_t &tracker, std::vector<std::string> mkvFiles, std::string btFileSuffix) {
 	if (mkvFiles.size() < 1) {
 		printf("At least one mkv video must be found for processing");
 		return false;
 	}
 
-	KinectAzureUtils::recording_t* files = *filess;
+	KinectAzureProcessor::recording_t* files = *filess;
 	k4a_calibration_t* calibrations = *calibrationss;
 
 	size_t file_count = (size_t)(mkvFiles.size());
@@ -441,22 +435,22 @@ bool KinectAzureUtils::openFiles(KinectAzureUtils::recording_t** filess, k4a_cal
 	return result == K4A_RESULT_SUCCEEDED;
 }
 
-int KinectAzureUtils::outputRecordingsToPlyFiles(std::unordered_map<std::string, Eigen::Matrix4Xd> transformations, std::string btFileSuffix, BodyTrackingUtils::BoundingBox captureSpaceBounds) {
+int KinectAzureProcessor::outputRecordingsToPlyFiles(std::unordered_map<std::string, Eigen::Matrix4Xd> transformations, std::string btFileSuffix, BodyTrackingUtils::BoundingBox captureSpaceBounds) {
 	// Grab filenames to read in
 	std::vector<std::string> mkvFiles = IOUtils::obtainMkvFilesFromDirectory(captureDirectory);
 
 	int fileCount = mkvFiles.size();
 	std::string masterFileSuffix = "Master.mkv";
 
-	KinectAzureUtils::recording_t* files = (KinectAzureUtils::recording_t*)malloc(sizeof(KinectAzureUtils::recording_t) * fileCount);
+	KinectAzureProcessor::recording_t* files = (KinectAzureProcessor::recording_t*)malloc(sizeof(KinectAzureProcessor::recording_t) * fileCount);
 	k4a_calibration_t* calibrations = (k4a_calibration_t*)malloc(sizeof(k4a_calibration_t) * fileCount);
 	// Allocate memory to store the state of N recordings.
 	if (files == NULL)
 	{
-		printf("Failed to allocate memory for playback (%zu bytes)\n", sizeof(KinectAzureUtils::recording_t) * fileCount);
+		printf("Failed to allocate memory for playback (%zu bytes)\n", sizeof(KinectAzureProcessor::recording_t) * fileCount);
 		return 1;
 	}
-	memset(files, 0, sizeof(KinectAzureUtils::recording_t) * fileCount);
+	memset(files, 0, sizeof(KinectAzureProcessor::recording_t) * fileCount);
 	memset(calibrations, 0, sizeof(k4a_calibration_t) * fileCount);
 	k4abt_tracker_t tracker = NULL;
 
@@ -551,7 +545,7 @@ int KinectAzureUtils::outputRecordingsToPlyFiles(std::unordered_map<std::string,
 		}
 
 		// Grab next frame
-		KinectAzureUtils::FrameInfo frameInfo = getNextFrame(fileCount, files);
+		KinectAzureProcessor::FrameInfo frameInfo = getNextFrame(fileCount, files);
 		
 		// Once the next frame is obtained, check if it is the end of the capture
 		// The file will be null is the capture has ended

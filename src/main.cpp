@@ -1,5 +1,5 @@
 #include "IOUtils.h"
-#include "KinectAzureUtils.h"
+#include "KinectAzureProcessor.h"
 #include "Ply.h"
 
 #include <iostream>
@@ -9,7 +9,6 @@
 #include <float.h>
 #include <math.h>
 #include <Eigen/Dense>
-#include "PclUtils.h"
 
 using namespace std;
 
@@ -102,11 +101,11 @@ int main(int argc, char** argv) {
 	unordered_map<string, Eigen::Matrix4Xd> transforms = IOUtils::readTransformationFile(transformPath);
 
 	// Create KinectAzureUtils object and process captures
-	KinectAzureUtils kinectAzureUtils(captureDirectory);
-	kinectAzureUtils.setBodyTrackingOutputOnly(bodyTrackingOnly);
-	kinectAzureUtils.setCalibrationMode(calibrationMode);
-	kinectAzureUtils.setDebugMode(debugMode);
-	kinectAzureUtils.setDisableMeshOutput(skipMesh);
-	kinectAzureUtils.setIndividualFrameIndex(frame);
-	return kinectAzureUtils.outputRecordingsToPlyFiles(transforms, bodyTrackingFileSuffix, captureSpaceBounds);
+	KinectAzureProcessor kinectAzureProcessor(captureDirectory);
+	kinectAzureProcessor.setBodyTrackingOutputOnly(bodyTrackingOnly);
+	kinectAzureProcessor.setCalibrationMode(calibrationMode);
+	kinectAzureProcessor.setDebugMode(debugMode);
+	kinectAzureProcessor.setDisableMeshOutput(skipMesh);
+	kinectAzureProcessor.setIndividualFrameIndex(frame);
+	return kinectAzureProcessor.outputRecordingsToPlyFiles(transforms, bodyTrackingFileSuffix, captureSpaceBounds);
 }

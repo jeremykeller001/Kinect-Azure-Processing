@@ -5,7 +5,7 @@ project( solution )
 set( SOURCE
 	src/BodyTrackingUtils.cpp
 	src/IOUtils.cpp
-	src/KinectAzureUtils.cpp
+	src/KinectAzureProcessor.cpp
 	src/main.cpp
 	src/MatrixUtils.cpp
 	src/PclUtils.cpp
@@ -14,7 +14,7 @@ set( SOURCE
 set (HEADERS
 	src/BodyTrackingUtils.h
 	src/IOUtils.h
-	src/KinectAzureUtils.h
+	src/KinectAzureProcessor.h
 	src/MatrixUtils.h
 	src/PclUtils.h
 	src/Ply.h)
