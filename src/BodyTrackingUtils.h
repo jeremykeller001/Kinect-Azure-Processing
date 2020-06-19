@@ -24,8 +24,6 @@
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_types.h>
 
-#include "BodyTrackingHelpers.h"
-
 #ifndef BODY_TRACKING_UTILS_H
 #define BODY_TRACKING_UTILS_H
 
