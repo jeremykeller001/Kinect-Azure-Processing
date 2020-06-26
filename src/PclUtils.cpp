@@ -70,7 +70,7 @@ void PclUtils::resampleAndMesh(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, std::s
 	mls.setNumberOfThreads(atoi(std::getenv("NUMBER_OF_PROCESSORS")));
 	mls.setPolynomialOrder(2);
 	mls.setSearchMethod(tree);
-	mls.setSearchRadius(50);
+	mls.setSearchRadius(35); // Smoothing radius. Higher values will result in a smoother point cloud, but more points removed
 
 	// Reconstruct
 	mls.process(*mls_points);
@@ -144,12 +144,12 @@ void PclUtils::resampleAndMesh(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, std::s
 }
 
 void PclUtils::downsample(pcl::PointCloud<pcl::PointXYZ>::Ptr inCloud, pcl::PointCloud<pcl::PointXYZ>::Ptr outCloud) {
-	// Voxel Grid filtering
-	pcl::VoxelGrid<pcl::PointXYZ> vox;
-	vox.setInputCloud(inCloud);
-	vox.setLeafSize(10, 10, 10);
-	//std::cerr << "PointCloud before voxel grid filtering: " << inCloud->width * inCloud->height << std::endl;
-	vox.filter(*outCloud);
-	//std::cerr << "PointCloud after voxel grid filtering: " << outCloud->width * outCloud->height << std::endl;
-	//pcl::io::savePCDFile("voxel_grid.pcd", *outCloud);
+	// uniform sampling filter
+	pcl::UniformSampling<pcl::PointXYZ> filter;
+	filter.setInputCloud(inCloud);
+	filter.setRadiusSearch(10.0); // Radius to create downsampling boxes in millimeters. Higher values will downsample more points
+	//std::cerr << "PointCloud before filtering: " << inCloud->width * inCloud->height << std::endl;
+	filter.filter(*outCloud);
+	//std::cerr << "PointCloud after filtering: " << outCloud->width * outCloud->height << std::endl;
+	//pcl::io::savePCDFile("downsampled.pcd", *outCloud);
 }
