@@ -5,6 +5,7 @@
 #include <pcl/io/vtk_io.h>
 #include <pcl/io/obj_io.h>
 #include <pcl/point_types.h>
+#include <pcl/filters/radius_outlier_removal.h>
 #include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/filters/uniform_sampling.h>
 #include <pcl/kdtree/kdtree_flann.h>
@@ -68,11 +69,12 @@ public:
 	/**
 	* Downsamples a point cloud, resamples it using a moving least squares algorithm, then outputs the point cloud and generates a mesh .obj output for it
 	*
-	* cloud Point cloud to process
-	* outputName Full file path with name, no file extension
-	* skipMesh Whether or not the mesh output should be skipped. Skipping it will drastically reduce processing time.
+	* @param cloud Point cloud to process
+	* @param outputName Full file path with name, no file extension
+	* @param skipMesh Whether or not the mesh output should be skipped. Skipping it will drastically reduce processing time.
+	* @param centroidCoordinates (For meshing use only) The xyz location of the centroid to compute normals from. It will be inversed before the surfacing process
 	*/
-	static void resampleAndMesh(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, std::string outputName, bool skipMesh);
+	static void resampleAndMesh(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, std::string outputName, bool skipMesh, Eigen::RowVector3d centroidCoordinates);
 
 	/**
 	* Downsamples a point cloud. Useful to even out the point density variance of multiple Kinect cameras with differing distances from the capture subject

@@ -205,6 +205,9 @@ void KinectAzureProcessor::outputPointCloudGroup(std::vector<Ply> plys, uint64_t
 	std::stringstream outputFileName;
 	outputFileName << "Group" << groupCount << "_";
 
+	// Track centroid location for normals in mesh process
+	Eigen::RowVector3d centroid = { 0, 0, 0 };
+
 	// Apply transformations to move all point clouds into master coordinate system
 	std::vector<Ply> transformedPlys = MatrixUtils::applyTransforms(plys, transformations);
 
@@ -245,6 +248,7 @@ void KinectAzureProcessor::outputPointCloudGroup(std::vector<Ply> plys, uint64_t
 				std::cerr << "Subject is outside of capture space. Skipping output." << endl;
 				return;
 			}
+			centroid = { jointPositionsTransformed.at(1)(0), jointPositionsTransformed.at(1)(1), jointPositionsTransformed.at(1)(2) };
 			boundingBox = BodyTrackingUtils::createBoundingBox(jointPositionsTransformed);
 
 		}
@@ -253,6 +257,7 @@ void KinectAzureProcessor::outputPointCloudGroup(std::vector<Ply> plys, uint64_t
 				std::cerr << "Subject is outside of capture space. Skipping output." << endl;
 				return;
 			}
+			centroid = { jointPositions.at(1)(0), jointPositions.at(1)(1), jointPositions.at(1)(2) };
 			boundingBox = BodyTrackingUtils::createBoundingBox(jointPositions);
 		}
 
@@ -332,7 +337,7 @@ void KinectAzureProcessor::outputPointCloudGroup(std::vector<Ply> plys, uint64_t
 		std::string fullMeshPath = std::string(captureDirectory);
 		fullMeshPath += "\\";
 		fullMeshPath += meshFileName;
-		PclUtils::resampleAndMesh(pclCloudCombined, fullMeshPath, disableMeshOutput);
+		PclUtils::resampleAndMesh(pclCloudCombined, fullMeshPath, disableMeshOutput, centroid);
 	}
 }
 

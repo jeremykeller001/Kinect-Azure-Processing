@@ -40,7 +40,7 @@ void PclUtils::applyStatisticalOutlierFilter(pcl::PointCloud<pcl::PointXYZ>::Ptr
 	//std::cerr << *outCloud << std::endl;
 }
 
-void PclUtils::resampleAndMesh(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, std::string outputName, bool skipMesh) {
+void PclUtils::resampleAndMesh(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, std::string outputName, bool skipMesh, Eigen::RowVector3d centroidCoordinates) {
 	//
 	// Downsample for performance
 	//
@@ -53,30 +53,30 @@ void PclUtils::resampleAndMesh(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, std::s
 	// Create a KD-Tree
 	pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
 
-	// Create the normal estimation class, and pass the input dataset to it
-	pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
-	ne.setInputCloud(cloud2);
+	// Create output cloud
+	pcl::PointCloud<pcl::PointXYZ>::Ptr smoothedCloud(new pcl::PointCloud<pcl::PointXYZ>);
 
-	// Output has the PointNormal type in order to store the normals calculated by MLS
-	pcl::PointCloud<pcl::PointNormal>::Ptr mls_points(new pcl::PointCloud<pcl::PointNormal>);
-
-	// Init object (second point type is for the normals, even if unused)
-	pcl::MovingLeastSquares<pcl::PointXYZ, pcl::PointNormal> mls;
-
-	mls.setComputeNormals(true);
-
+	// Init mls object
+	pcl::MovingLeastSquares<pcl::PointXYZ, pcl::PointXYZ> mls;
 	// Set parameters
 	mls.setInputCloud(cloud2);
 	mls.setNumberOfThreads(atoi(std::getenv("NUMBER_OF_PROCESSORS")));
 	mls.setPolynomialOrder(2);
 	mls.setSearchMethod(tree);
-	mls.setSearchRadius(35); // Smoothing radius. Higher values will result in a smoother point cloud, but more points removed
-
+	mls.setSearchRadius(25); // Smoothing radius. Higher values will result in a smoother point cloud, but more points removed
 	// Reconstruct
-	mls.process(*mls_points);
+	mls.process(*smoothedCloud);
+
+	// Filter outlying points
+	pcl::PointCloud<pcl::PointXYZ>::Ptr smoothedFilteredCloud(new pcl::PointCloud<pcl::PointXYZ>);
+	pcl::RadiusOutlierRemoval<pcl::PointXYZ> filter;
+	filter.setInputCloud(smoothedCloud);
+	filter.setRadiusSearch(15.0); // Search radius in mm. Valid neighbors must be within this radius of the original point
+	filter.setMinNeighborsInRadius(8); // If there are less than this number of neighbors within the search radius of the original point, it will be filtered 
+	filter.filter(*smoothedFilteredCloud);
 
 	// Save output
-	pcl::io::savePCDFile(outputName + ".pcd", *mls_points);
+	pcl::io::savePCDFile(outputName + ".pcd", *smoothedFilteredCloud);
 
 	//
 	// Meshing
@@ -85,10 +85,29 @@ void PclUtils::resampleAndMesh(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, std::s
 	if (skipMesh) {
 		return;
 	}
-	pcl::search::KdTree<pcl::PointNormal>::Ptr tree2(new pcl::search::KdTree<pcl::PointNormal>);
-	tree2->setInputCloud(mls_points);
 
-	// Initialize objects
+	// Calculate normals
+	pcl::NormalEstimationOMP<pcl::PointXYZ, pcl::Normal> ne;
+	pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
+	ne.setNumberOfThreads(atoi(std::getenv("NUMBER_OF_PROCESSORS")));
+	ne.setInputCloud(smoothedFilteredCloud);
+	ne.setRadiusSearch(50);
+	ne.setViewPoint(centroidCoordinates(0), centroidCoordinates(1), centroidCoordinates(2));
+	ne.compute(*normals);
+	// Flip normals direction since viewpoint was placed inside subject
+	for (int i = 0; i < normals->size(); i++) {
+		normals->points[i].normal_x *= -1;
+		normals->points[i].normal_y *= -1;
+		normals->points[i].normal_z *= -1;
+	}
+	// Combine XYZ points and normals
+	pcl::PointCloud<pcl::PointNormal>::Ptr pointNormals(new pcl::PointCloud<pcl::PointNormal>);
+	pcl::concatenateFields(*smoothedFilteredCloud, *normals, *pointNormals);
+
+	pcl::search::KdTree<pcl::PointNormal>::Ptr tree2(new pcl::search::KdTree<pcl::PointNormal>);
+	tree2->setInputCloud(pointNormals);
+
+	// Initialize meshing objects
 	pcl::GreedyProjectionTriangulation<pcl::PointNormal> gpt;
 	pcl::PolygonMesh triangles;
 
@@ -104,7 +123,7 @@ void PclUtils::resampleAndMesh(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, std::s
 	gpt.setNormalConsistency(false);
 
 	// Get result
-	gpt.setInputCloud(mls_points);
+	gpt.setInputCloud(pointNormals);
 	gpt.setSearchMethod(tree2);
 	gpt.reconstruct(triangles);
 
@@ -120,17 +139,17 @@ void PclUtils::resampleAndMesh(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, std::s
 	fillHolesFilter->Update();
 
 	// Make the triangle winding order consistent now that hole filling is complete
-	vtkSmartPointer<vtkPolyDataNormals> normals =
+	vtkSmartPointer<vtkPolyDataNormals> normals2 =
 		vtkSmartPointer<vtkPolyDataNormals>::New();
-	normals->SetInputData(fillHolesFilter->GetOutput());
-	normals->ConsistencyOn();
-	normals->SplittingOff();
-	normals->Update();
+	normals2->SetInputData(fillHolesFilter->GetOutput());
+	normals2->ConsistencyOn();
+	normals2->SplittingOff();
+	normals2->Update();
 
 	vtkSmartPointer<vtkSmoothPolyDataFilter> smoothFilter =
 		vtkSmartPointer<vtkSmoothPolyDataFilter>::New();
 	smoothFilter->SetNumberOfIterations(100);
-	smoothFilter->SetInputData(normals->GetOutput());
+	smoothFilter->SetInputData(normals2->GetOutput());
 	smoothFilter->SetRelaxationFactor(0.05);
 	smoothFilter->FeatureEdgeSmoothingOff();
 	smoothFilter->BoundarySmoothingOn();
@@ -147,7 +166,7 @@ void PclUtils::downsample(pcl::PointCloud<pcl::PointXYZ>::Ptr inCloud, pcl::Poin
 	// uniform sampling filter
 	pcl::UniformSampling<pcl::PointXYZ> filter;
 	filter.setInputCloud(inCloud);
-	filter.setRadiusSearch(10.0); // Radius to create downsampling boxes in millimeters. Higher values will downsample more points
+	filter.setRadiusSearch(7.5); // Radius to create downsampling boxes in millimeters. Higher values will downsample more points
 	//std::cerr << "PointCloud before filtering: " << inCloud->width * inCloud->height << std::endl;
 	filter.filter(*outCloud);
 	//std::cerr << "PointCloud after filtering: " << outCloud->width * outCloud->height << std::endl;
