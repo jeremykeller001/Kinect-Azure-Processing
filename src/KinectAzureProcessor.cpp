@@ -480,6 +480,7 @@ int KinectAzureProcessor::outputRecordingsToPlyFiles(std::unordered_map<std::str
 	std::vector<CalibrationInfo> calibrationInfo;
 
 	// Processing variables
+	int captureCount = 0;
 	int groupCount = 0;
 	int previousGroupCount = 0;
 	uint64_t startGroupTimestamp = 0;
@@ -494,6 +495,7 @@ int KinectAzureProcessor::outputRecordingsToPlyFiles(std::unordered_map<std::str
 	std::vector<Eigen::RowVector3d> sub2Joints;
 	ptree jointOutputJson, framesJson;
 	std::vector<Eigen::RowVector3d> joints;
+	double jointFrameModifier = 0.0;
 
 	// Loop variables
 	int endThreshold = 3; // Number of consecutive frames without a master capture before we decide to end the processing
@@ -599,7 +601,7 @@ int KinectAzureProcessor::outputRecordingsToPlyFiles(std::unordered_map<std::str
 					}
 
 					// Only process group if it contains all frames along with body tracking* (only if tracker capture exists)
-					if (groupFrames.size() == fileCount && (!trackerCaptureFound || jointsObtained)) {
+					if (captureCount >= fileCount && (!trackerCaptureFound || jointsObtained)) {
 						if (individualFrameIndex == -1 || groupCount >= individualFrameIndex) {
 							missingFrameCount = 0;
 
@@ -620,7 +622,7 @@ int KinectAzureProcessor::outputRecordingsToPlyFiles(std::unordered_map<std::str
 							}
 						}
 					}
-					else if (groupFrames.size() < fileCount) {
+					else if (captureCount < fileCount) {
 						missingFrameCount++;
 						std::cerr << "Frames missing for group " << groupCount << ". Skipping." << std::endl;
 						if (groupCount == individualFrameIndex) {
@@ -649,24 +651,34 @@ int KinectAzureProcessor::outputRecordingsToPlyFiles(std::unordered_map<std::str
 				groupFrames.shrink_to_fit();
 				startGroupTimestamp = frameInfo.timestamp;
 				joints.clear();
+				jointFrameModifier = 0.0;
+				captureCount = 0;
 
 				// Add current frame to group
-				groupFrames.push_back(generatePointCloud(frameInfo, calibrations));
+				captureCount++;
+				if (!skipBtCloudProcessing || !IOUtils::endsWith(frameInfo.file->filename, btFileSuffix)) {
+					groupFrames.push_back(generatePointCloud(frameInfo, calibrations));
+				}
 
 				// If capture is the desired body tracking file, process joint tracking data
 				if (trackerCaptureFound && IOUtils::endsWith(frameInfo.file->filename, btFileSuffix) && !individualFrameProcessed) {
-					jointsObtained = BodyTrackingUtils::predictJoints(&framesJson, groupCount, tracker, frameInfo.file->capture, &joints);
+					jointsObtained = BodyTrackingUtils::predictJoints(&framesJson, groupCount + jointFrameModifier, tracker, frameInfo.file->capture, &joints);
+					jointFrameModifier += 0.5;
 				}
 			}
 			else {
 				print_capture_info(frameInfo.file);
+				captureCount++;
 
 				// Add current frame to group
-				groupFrames.push_back(generatePointCloud(frameInfo, calibrations));
+				if (!skipBtCloudProcessing || !IOUtils::endsWith(frameInfo.file->filename, btFileSuffix)) {
+					groupFrames.push_back(generatePointCloud(frameInfo, calibrations));
+				}
 
 				// If capture is the desired body tracking file, process joint tracking data
 				if (trackerCaptureFound && IOUtils::endsWith(frameInfo.file->filename, btFileSuffix) && groupCount != 0) {
-					jointsObtained = BodyTrackingUtils::predictJoints(&framesJson, groupCount, tracker, frameInfo.file->capture, &joints);
+					jointsObtained = BodyTrackingUtils::predictJoints(&framesJson, groupCount + jointFrameModifier, tracker, frameInfo.file->capture, &joints);
+					jointFrameModifier += 0.5;
 				}
 			}
 		}

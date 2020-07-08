@@ -96,7 +96,8 @@ int main(int argc, char** argv) {
 	}
 
 	// Obtain Eigen transforms, body tracking suffix, and capture space bounds if exists
-	std::string bodyTrackingFileSuffix = IOUtils::obtainBodyTrackingFileSuffix(transformPath);
+	bool skipBtCloudProcessing = false;
+	std::string bodyTrackingFileSuffix = IOUtils::obtainBodyTrackingFileSuffix(transformPath, &skipBtCloudProcessing);
 	BodyTrackingUtils::BoundingBox captureSpaceBounds = IOUtils::obtainCaptureSpaceBounds(transformPath);
 	unordered_map<string, Eigen::Matrix4Xd> transforms = IOUtils::readTransformationFile(transformPath);
 
@@ -107,5 +108,6 @@ int main(int argc, char** argv) {
 	kinectAzureProcessor.setDebugMode(debugMode);
 	kinectAzureProcessor.setDisableMeshOutput(skipMesh);
 	kinectAzureProcessor.setIndividualFrameIndex(frame);
+	kinectAzureProcessor.setSkipBtCloudProcessing(skipBtCloudProcessing);
 	return kinectAzureProcessor.outputRecordingsToPlyFiles(transforms, bodyTrackingFileSuffix, captureSpaceBounds);
 }

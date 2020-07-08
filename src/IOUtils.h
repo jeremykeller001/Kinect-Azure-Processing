@@ -77,9 +77,12 @@ public:
 	* Obtains the body tracking file suffix from a transformation file
 	*
 	* @param fileName Full file name with path of the transform file to process
+	* @param skipBtCloudProcessing Pointer to boolean which will be set if the body tracking capture should not be processed into point cloud and only used for its joint location tracking.
+	*	This can be configured in the configuration file by adding a dash '-' to the end of the body tracking file suffix symbol.
+	*	It is required when running the body tracking capture at a higher frame rate than the rest of the captures.
 	* @return The file suffix to use for body tracking. Empty string if not specified in the transform file
 	*/
-	static std::string obtainBodyTrackingFileSuffix(std::string fileName);
+	static std::string obtainBodyTrackingFileSuffix(std::string fileName, bool* skipBtCloudProcessing);
 
 	/**
 	* Obtains capture space bounds from a transformation file
