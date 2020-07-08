@@ -16,7 +16,7 @@ void usage(char* projectName) {
 	cout << "Usage: " << projectName << " transform/file/path [options]" << endl <<
 		"\tOptions:" << endl <<
 		"\t-h | --help\t\t\tShow this help message" << endl <<
-		"\t-t | --transform FILE_PATH\tFile path to transform file" << endl <<
+		"\t-t | --transform FILE_PATH\tFile path to transform configuration file" << endl <<
 		"\t-c | --calibration\t\tRun in calibration mode" << endl <<
 		"\t-f | --frame FRAME\t\tSpecify to only output an individual frame (default: 15 in calibration mode)" << endl <<
 		"\t-d | --debug\t\t\tEnable debug mode logging and outputs" << endl <<
