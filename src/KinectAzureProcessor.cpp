@@ -84,7 +84,7 @@ std::string KinectAzureProcessor::getStartRecording(recording_t* files, std::vec
 		return "";
 	}
 
-	CalibrationInfo startFrameInfo = { timestampDifferenceCounts.at(maxTimestampDiff).fileName, maxTimestampDiff };
+	//CalibrationInfo startFrameInfo = { timestampDifferenceCounts.at(maxTimestampDiff).fileName, maxTimestampDiff };
 	return timestampDifferenceCounts.at(maxTimestampDiff).fileName;
 }
 
@@ -435,6 +435,18 @@ bool KinectAzureProcessor::openFiles(KinectAzureProcessor::recording_t** filess,
 	return result == K4A_RESULT_SUCCEEDED;
 }
 
+uint64_t KinectAzureProcessor::getMaxTimestampDiff(k4a_calibration_t** calibrations, int fileCount) {
+	for (int i = 0; i < fileCount; i++) {
+		// If any capture is running in max resolution, assume 15fps
+		if (calibrations[0]->depth_camera_calibration.resolution_height == 1024) {
+			return timestampDiff15;
+		}
+	}
+
+	// Otherwise assume 30fps
+	return timestampDiff30;
+}
+
 int KinectAzureProcessor::outputRecordingsToPlyFiles(std::unordered_map<std::string, Eigen::Matrix4Xd> transformations, std::string btFileSuffix, BodyTrackingUtils::BoundingBox captureSpaceBounds) {
 	// Grab filenames to read in
 	std::vector<std::string> mkvFiles = IOUtils::obtainMkvFilesFromDirectory(captureDirectory);
@@ -485,9 +497,11 @@ int KinectAzureProcessor::outputRecordingsToPlyFiles(std::unordered_map<std::str
 	int previousGroupCount = 0;
 	uint64_t startGroupTimestamp = 0;
 	std::string startFileName;
+	std::string previousFileName;
 	// Assume all files are run with the same frame rate
-	uint64_t maxTimestampDiff = calibrations[0].depth_camera_calibration.resolution_height == 1024 ? timestampDiff15 : timestampDiff30;
+	uint64_t maxTimestampDiff = getMaxTimestampDiff(&calibrations, fileCount);
 	std::vector<Ply> groupFrames;
+
 
 	// Joint tracking variables
 	bool trackerCaptureFound = (tracker != NULL);
@@ -563,7 +577,7 @@ int KinectAzureProcessor::outputRecordingsToPlyFiles(std::unordered_map<std::str
 		// Get the timestamp from the frame
 		uint64_t timestamp = (uint64_t)frameInfo.timestamp - previousTimestamp;
 
-		if (frame < discardFrameEnd) {
+		if (frame >= discardFrameEnd && frame < orderingFrameEnd) {
 			uint64_t timestamp = (uint64_t)frameInfo.timestamp - previousTimestamp;
 			//std::cout << std::endl << "Frame" << frame << " Timestamp difference: " << timestamp << std::endl;
 			previousTimestamp = frameInfo.timestamp;
@@ -587,19 +601,16 @@ int KinectAzureProcessor::outputRecordingsToPlyFiles(std::unordered_map<std::str
 				// Continue until we get to the starting file
 				if (std::string(frameInfo.file->filename).compare(startFileName) == 0) {
 					startGroupTimestamp = frameInfo.timestamp;
-					//groupFrames.push_back(generatePointCloud(frameInfo, calibrations));
 				}
+			}
+			else if (startGroupTimestamp != 0 && groupCount == 0 && groupTimestampDiff <= maxTimestampDiff && std::string(frameInfo.file->filename).compare(previousFileName) == 0) {
+				// Case where a capture appears twice in a row (can happen for Body tracking capture running at double fps of other captures)
+				startGroupTimestamp = frameInfo.timestamp;
 			}
 			else if (groupTimestampDiff > maxTimestampDiff) {
 				// Process previous group
 				// Don't process first group
 				if (groupCount != 0) {
-					for (Ply& groupFrame : groupFrames) {
-						if (IOUtils::endsWith(groupFrame.getFileName(), masterFileSuffix)) {
-							break;
-						}
-					}
-
 					// Only process group if it contains all frames along with body tracking* (only if tracker capture exists)
 					if (captureCount >= fileCount && (!trackerCaptureFound || jointsObtained)) {
 						if (individualFrameIndex == -1 || groupCount >= individualFrameIndex) {
@@ -683,6 +694,7 @@ int KinectAzureProcessor::outputRecordingsToPlyFiles(std::unordered_map<std::str
 			}
 		}
 
+		previousFileName = frameInfo.file->filename;
 		k4a_capture_release(frameInfo.file->capture);
 		frameInfo.file->capture = NULL;
 

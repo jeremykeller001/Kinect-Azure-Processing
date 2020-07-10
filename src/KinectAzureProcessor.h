@@ -199,6 +199,8 @@ private:
 
 	bool openFiles(KinectAzureProcessor::recording_t** files, k4a_calibration_t** calibrations, k4abt_tracker_t& tracker, std::vector<std::string> mkvFiles, std::string btFileSuffix);
 
+	static uint64_t getMaxTimestampDiff(k4a_calibration_t** calibrations, int fileCount);
+
 public:
 	KinectAzureProcessor(std::string captureDir) {
 		captureDirectory = captureDir;
