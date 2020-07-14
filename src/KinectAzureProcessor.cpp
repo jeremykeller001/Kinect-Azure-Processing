@@ -540,6 +540,7 @@ int KinectAzureProcessor::outputRecordingsToPlyFiles(std::unordered_map<std::str
 				outfile.open(outfileName, ios::out | ios::trunc);
 
 				jointOutputJson.add_child("frames", framesJson);
+				BodyTrackingUtils::seedJointNames(&jointOutputJson);
 
 				std::ostringstream oss;
 				boost::property_tree::write_json(oss, jointOutputJson);
