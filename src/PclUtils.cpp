@@ -76,7 +76,9 @@ void PclUtils::resampleAndMesh(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, std::s
 	mls.process(*mls_points);
 
 	// Save output
-	pcl::io::savePCDFile(outputName + ".pcd", *mls_points);
+	pcl::PointCloud<pcl::PointXYZ>::Ptr outCloud(new pcl::PointCloud<pcl::PointXYZ>);
+	pcl::copyPointCloud<pcl::PointNormal, pcl::PointXYZ>(*mls_points, *outCloud);
+	pcl::io::savePCDFile(outputName + ".pcd", *outCloud);
 
 	//
 	// Meshing
