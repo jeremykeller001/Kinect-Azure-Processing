@@ -12,7 +12,7 @@
 using namespace std;
 using boost::property_tree::ptree;
 
-bool BodyTrackingUtils::predictJoints(ptree* framesJson, int frameCount, k4abt_tracker_t tracker, k4a_capture_t capture_handle, vector<Eigen::RowVector3d>* jointPositions) {
+bool BodyTrackingUtils::predictJoints(ptree* framesJson, double frameCount, k4abt_tracker_t tracker, k4a_capture_t capture_handle, vector<Eigen::RowVector3d>* jointPositions) {
 	k4a_wait_result_t queue_capture_result = k4abt_tracker_enqueue_capture(tracker, capture_handle, K4A_WAIT_INFINITE);
 	if (queue_capture_result != K4A_WAIT_RESULT_SUCCEEDED)
 	{
@@ -138,6 +138,45 @@ bool BodyTrackingUtils::predictJoints(ptree* framesJson, int frameCount, k4abt_t
 		return true;
 	}
 	return false;
+}
+
+void BodyTrackingUtils::seedJointNames(ptree* jointOutputJson) {
+	ptree jointNames;
+
+	jointNames.push_back(std::make_pair("", ptree().put("", "PELVIS")));
+	jointNames.push_back(std::make_pair("", ptree().put("", "SPINE_NAVEL")));
+	jointNames.push_back(std::make_pair("", ptree().put("", "SPINE_CHEST")));
+	jointNames.push_back(std::make_pair("", ptree().put("", "NECK")));
+	jointNames.push_back(std::make_pair("", ptree().put("", "CLAVICLE_LEFT")));
+	jointNames.push_back(std::make_pair("", ptree().put("", "SHOULDER_LEFT")));
+	jointNames.push_back(std::make_pair("", ptree().put("", "ELBOW_LEFT")));
+	jointNames.push_back(std::make_pair("", ptree().put("", "WRIST_LEFT")));
+	jointNames.push_back(std::make_pair("", ptree().put("", "HAND_LEFT")));
+	jointNames.push_back(std::make_pair("", ptree().put("", "HANDTIP_LEFT")));
+	jointNames.push_back(std::make_pair("", ptree().put("", "THUMB_LEFT")));
+	jointNames.push_back(std::make_pair("", ptree().put("", "CLAVICLE_RIGHT")));
+	jointNames.push_back(std::make_pair("", ptree().put("", "SHOULDER_RIGHT")));
+	jointNames.push_back(std::make_pair("", ptree().put("", "ELBOW_RIGHT")));
+	jointNames.push_back(std::make_pair("", ptree().put("", "WRIST_RIGHT")));
+	jointNames.push_back(std::make_pair("", ptree().put("", "HAND_RIGHT")));
+	jointNames.push_back(std::make_pair("", ptree().put("", "HANDTIP_RIGHT")));
+	jointNames.push_back(std::make_pair("", ptree().put("", "THUMB_RIGHT")));
+	jointNames.push_back(std::make_pair("", ptree().put("", "HIP_LEFT")));
+	jointNames.push_back(std::make_pair("", ptree().put("", "KNEE_LEFT")));
+	jointNames.push_back(std::make_pair("", ptree().put("", "ANKLE_LEFT")));
+	jointNames.push_back(std::make_pair("", ptree().put("", "FOOT_LEFT")));
+	jointNames.push_back(std::make_pair("", ptree().put("", "HIP_RIGHT")));
+	jointNames.push_back(std::make_pair("", ptree().put("", "KNEE_RIGHT")));
+	jointNames.push_back(std::make_pair("", ptree().put("", "ANKLE_RIGHT")));
+	jointNames.push_back(std::make_pair("", ptree().put("", "FOOT_RIGHT")));
+	jointNames.push_back(std::make_pair("", ptree().put("", "HEAD")));
+	jointNames.push_back(std::make_pair("", ptree().put("", "NOSE")));
+	jointNames.push_back(std::make_pair("", ptree().put("", "EYE_LEFT")));
+	jointNames.push_back(std::make_pair("", ptree().put("", "EAR_LEFT")));
+	jointNames.push_back(std::make_pair("", ptree().put("", "EYE_RIGHT")));
+	jointNames.push_back(std::make_pair("", ptree().put("", "EAR_RIGHT")));
+
+	jointOutputJson->add_child("joint_names", jointNames);
 }
 
 BodyTrackingUtils::BoundingBox BodyTrackingUtils::createBoundingBox(vector<Eigen::RowVector3d> jointPositions) {

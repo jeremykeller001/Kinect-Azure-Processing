@@ -56,7 +56,14 @@ public:
 	* @param jointPositions Container that will hold the predicted joint locations to be used for later processing
 	* @return Whether or not joints could be predicted for the capture frame
 	*/
-	static bool predictJoints(boost::property_tree::ptree* jsonFrames, int frameCount, k4abt_tracker_t tracker, k4a_capture_t capture_handle, std::vector<Eigen::RowVector3d>* jointPositions);
+	static bool predictJoints(boost::property_tree::ptree* jsonFrames, double frameCount, k4abt_tracker_t tracker, k4a_capture_t capture_handle, std::vector<Eigen::RowVector3d>* jointPositions);
+
+	/**
+	* Seeds the json output with a joint name array
+	*
+	* @param jointOutputJson Joint output to add names to
+	*/
+	static void seedJointNames(boost::property_tree::ptree* jointOutputJson);
 
 	/**
 	* Generates a BoundingBox based on joint locations so that a subject may be isolated within a capture

@@ -16,7 +16,7 @@ void usage(char* projectName) {
 	cout << "Usage: " << projectName << " transform/file/path [options]" << endl <<
 		"\tOptions:" << endl <<
 		"\t-h | --help\t\t\tShow this help message" << endl <<
-		"\t-t | --transform FILE_PATH\tFile path to transform file" << endl <<
+		"\t-t | --transform FILE_PATH\tFile path to transform configuration file" << endl <<
 		"\t-c | --calibration\t\tRun in calibration mode" << endl <<
 		"\t-f | --frame FRAME\t\tSpecify to only output an individual frame (default: 15 in calibration mode)" << endl <<
 		"\t-d | --debug\t\t\tEnable debug mode logging and outputs" << endl <<
@@ -96,7 +96,8 @@ int main(int argc, char** argv) {
 	}
 
 	// Obtain Eigen transforms, body tracking suffix, and capture space bounds if exists
-	std::string bodyTrackingFileSuffix = IOUtils::obtainBodyTrackingFileSuffix(transformPath);
+	bool skipBtCloudProcessing = false;
+	std::string bodyTrackingFileSuffix = IOUtils::obtainBodyTrackingFileSuffix(transformPath, &skipBtCloudProcessing);
 	BodyTrackingUtils::BoundingBox captureSpaceBounds = IOUtils::obtainCaptureSpaceBounds(transformPath);
 	unordered_map<string, Eigen::Matrix4Xd> transforms = IOUtils::readTransformationFile(transformPath);
 
@@ -107,5 +108,6 @@ int main(int argc, char** argv) {
 	kinectAzureProcessor.setDebugMode(debugMode);
 	kinectAzureProcessor.setDisableMeshOutput(skipMesh);
 	kinectAzureProcessor.setIndividualFrameIndex(frame);
+	kinectAzureProcessor.setSkipBtCloudProcessing(skipBtCloudProcessing);
 	return kinectAzureProcessor.outputRecordingsToPlyFiles(transforms, bodyTrackingFileSuffix, captureSpaceBounds);
 }

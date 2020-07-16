@@ -71,6 +71,13 @@ private:
 	bool bodyTrackingOutputOnly;
 
 	/**
+	* Specifies if cloud processing will be skipped on the body tracking camera.
+	* This is required for cases where the body tracking camera is run at a higher frame rate than the others.
+	* When specified, only the joint locations will be used from the body tracking capture.
+	*/
+	bool skipBtCloudProcessing;
+
+	/**
 	* Timestamp difference between frames when running at 15 frames per second
 	*/
 	static const uint64_t timestampDiff15 = 66000;
@@ -192,6 +199,8 @@ private:
 
 	bool openFiles(KinectAzureProcessor::recording_t** files, k4a_calibration_t** calibrations, k4abt_tracker_t& tracker, std::vector<std::string> mkvFiles, std::string btFileSuffix);
 
+	static uint64_t getMaxTimestampDiff(k4a_calibration_t** calibrations, int fileCount);
+
 public:
 	KinectAzureProcessor(std::string captureDir) {
 		captureDirectory = captureDir;
@@ -215,6 +224,10 @@ public:
 
 	void setBodyTrackingOutputOnly(bool bodyTrackingOnly) {
 		bodyTrackingOutputOnly = bodyTrackingOnly;
+	}
+
+	void setSkipBtCloudProcessing(bool skipBtCloud) {
+		skipBtCloudProcessing = skipBtCloud;
 	}
 
 	int outputRecordingsToPlyFiles(std::unordered_map<std::string, Eigen::Matrix4Xd> transformations, std::string btFileSuffix, BodyTrackingUtils::BoundingBox captureSpaceBounds);

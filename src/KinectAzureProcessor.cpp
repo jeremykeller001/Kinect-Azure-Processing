@@ -84,7 +84,7 @@ std::string KinectAzureProcessor::getStartRecording(recording_t* files, std::vec
 		return "";
 	}
 
-	CalibrationInfo startFrameInfo = { timestampDifferenceCounts.at(maxTimestampDiff).fileName, maxTimestampDiff };
+	//CalibrationInfo startFrameInfo = { timestampDifferenceCounts.at(maxTimestampDiff).fileName, maxTimestampDiff };
 	return timestampDifferenceCounts.at(maxTimestampDiff).fileName;
 }
 
@@ -440,6 +440,18 @@ bool KinectAzureProcessor::openFiles(KinectAzureProcessor::recording_t** filess,
 	return result == K4A_RESULT_SUCCEEDED;
 }
 
+uint64_t KinectAzureProcessor::getMaxTimestampDiff(k4a_calibration_t** calibrations, int fileCount) {
+	for (int i = 0; i < fileCount; i++) {
+		// If any capture is running in max resolution, assume 15fps
+		if (calibrations[0]->depth_camera_calibration.resolution_height == 1024) {
+			return timestampDiff15;
+		}
+	}
+
+	// Otherwise assume 30fps
+	return timestampDiff30;
+}
+
 int KinectAzureProcessor::outputRecordingsToPlyFiles(std::unordered_map<std::string, Eigen::Matrix4Xd> transformations, std::string btFileSuffix, BodyTrackingUtils::BoundingBox captureSpaceBounds) {
 	// Grab filenames to read in
 	std::vector<std::string> mkvFiles = IOUtils::obtainMkvFilesFromDirectory(captureDirectory);
@@ -485,13 +497,16 @@ int KinectAzureProcessor::outputRecordingsToPlyFiles(std::unordered_map<std::str
 	std::vector<CalibrationInfo> calibrationInfo;
 
 	// Processing variables
+	int captureCount = 0;
 	int groupCount = 0;
 	int previousGroupCount = 0;
 	uint64_t startGroupTimestamp = 0;
 	std::string startFileName;
+	std::string previousFileName;
 	// Assume all files are run with the same frame rate
-	uint64_t maxTimestampDiff = calibrations[0].depth_camera_calibration.resolution_height == 1024 ? timestampDiff15 : timestampDiff30;
+	uint64_t maxTimestampDiff = getMaxTimestampDiff(&calibrations, fileCount);
 	std::vector<Ply> groupFrames;
+
 
 	// Joint tracking variables
 	bool trackerCaptureFound = (tracker != NULL);
@@ -499,6 +514,7 @@ int KinectAzureProcessor::outputRecordingsToPlyFiles(std::unordered_map<std::str
 	std::vector<Eigen::RowVector3d> sub2Joints;
 	ptree jointOutputJson, framesJson;
 	std::vector<Eigen::RowVector3d> joints;
+	double jointFrameModifier = 0.0;
 
 	// Loop variables
 	int endThreshold = 3; // Number of consecutive frames without a master capture before we decide to end the processing
@@ -529,6 +545,7 @@ int KinectAzureProcessor::outputRecordingsToPlyFiles(std::unordered_map<std::str
 				outfile.open(outfileName, ios::out | ios::trunc);
 
 				jointOutputJson.add_child("frames", framesJson);
+				BodyTrackingUtils::seedJointNames(&jointOutputJson);
 
 				std::ostringstream oss;
 				boost::property_tree::write_json(oss, jointOutputJson);
@@ -566,7 +583,7 @@ int KinectAzureProcessor::outputRecordingsToPlyFiles(std::unordered_map<std::str
 		// Get the timestamp from the frame
 		uint64_t timestamp = (uint64_t)frameInfo.timestamp - previousTimestamp;
 
-		if (frame < discardFrameEnd) {
+		if (frame >= discardFrameEnd && frame < orderingFrameEnd) {
 			uint64_t timestamp = (uint64_t)frameInfo.timestamp - previousTimestamp;
 			//std::cout << std::endl << "Frame" << frame << " Timestamp difference: " << timestamp << std::endl;
 			previousTimestamp = frameInfo.timestamp;
@@ -590,21 +607,18 @@ int KinectAzureProcessor::outputRecordingsToPlyFiles(std::unordered_map<std::str
 				// Continue until we get to the starting file
 				if (std::string(frameInfo.file->filename).compare(startFileName) == 0) {
 					startGroupTimestamp = frameInfo.timestamp;
-					//groupFrames.push_back(generatePointCloud(frameInfo, calibrations));
 				}
+			}
+			else if (startGroupTimestamp != 0 && groupCount == 0 && groupTimestampDiff <= maxTimestampDiff && std::string(frameInfo.file->filename).compare(previousFileName) == 0) {
+				// Case where a capture appears twice in a row (can happen for Body tracking capture running at double fps of other captures)
+				startGroupTimestamp = frameInfo.timestamp;
 			}
 			else if (groupTimestampDiff > maxTimestampDiff) {
 				// Process previous group
 				// Don't process first group
 				if (groupCount != 0) {
-					for (Ply& groupFrame : groupFrames) {
-						if (IOUtils::endsWith(groupFrame.getFileName(), masterFileSuffix)) {
-							break;
-						}
-					}
-
 					// Only process group if it contains all frames along with body tracking* (only if tracker capture exists)
-					if (groupFrames.size() == fileCount && (!trackerCaptureFound || jointsObtained)) {
+					if (captureCount >= fileCount && (!trackerCaptureFound || jointsObtained)) {
 						if (individualFrameIndex == -1 || groupCount >= individualFrameIndex) {
 							missingFrameCount = 0;
 
@@ -625,7 +639,7 @@ int KinectAzureProcessor::outputRecordingsToPlyFiles(std::unordered_map<std::str
 							}
 						}
 					}
-					else if (groupFrames.size() < fileCount) {
+					else if (captureCount < fileCount) {
 						missingFrameCount++;
 						std::cerr << "Frames missing for group " << groupCount << ". Skipping." << std::endl;
 						if (groupCount == individualFrameIndex) {
@@ -654,28 +668,39 @@ int KinectAzureProcessor::outputRecordingsToPlyFiles(std::unordered_map<std::str
 				groupFrames.shrink_to_fit();
 				startGroupTimestamp = frameInfo.timestamp;
 				joints.clear();
+				jointFrameModifier = 0.0;
+				captureCount = 0;
 
 				// Add current frame to group
-				groupFrames.push_back(generatePointCloud(frameInfo, calibrations));
+				captureCount++;
+				if (!skipBtCloudProcessing || !IOUtils::endsWith(frameInfo.file->filename, btFileSuffix)) {
+					groupFrames.push_back(generatePointCloud(frameInfo, calibrations));
+				}
 
 				// If capture is the desired body tracking file, process joint tracking data
 				if (trackerCaptureFound && IOUtils::endsWith(frameInfo.file->filename, btFileSuffix) && !individualFrameProcessed) {
-					jointsObtained = BodyTrackingUtils::predictJoints(&framesJson, groupCount, tracker, frameInfo.file->capture, &joints);
+					jointsObtained = BodyTrackingUtils::predictJoints(&framesJson, groupCount + jointFrameModifier, tracker, frameInfo.file->capture, &joints);
+					jointFrameModifier += 0.5;
 				}
 			}
 			else {
 				print_capture_info(frameInfo.file);
+				captureCount++;
 
 				// Add current frame to group
-				groupFrames.push_back(generatePointCloud(frameInfo, calibrations));
+				if (!skipBtCloudProcessing || !IOUtils::endsWith(frameInfo.file->filename, btFileSuffix)) {
+					groupFrames.push_back(generatePointCloud(frameInfo, calibrations));
+				}
 
 				// If capture is the desired body tracking file, process joint tracking data
 				if (trackerCaptureFound && IOUtils::endsWith(frameInfo.file->filename, btFileSuffix) && groupCount != 0) {
-					jointsObtained = BodyTrackingUtils::predictJoints(&framesJson, groupCount, tracker, frameInfo.file->capture, &joints);
+					jointsObtained = BodyTrackingUtils::predictJoints(&framesJson, groupCount + jointFrameModifier, tracker, frameInfo.file->capture, &joints);
+					jointFrameModifier += 0.5;
 				}
 			}
 		}
 
+		previousFileName = frameInfo.file->filename;
 		k4a_capture_release(frameInfo.file->capture);
 		frameInfo.file->capture = NULL;
 

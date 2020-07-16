@@ -128,25 +128,37 @@ unordered_map<string, Eigen::Matrix4Xd> IOUtils::readTransformationFile(string f
 	return fileTransformMap;
 }
 
-std::string IOUtils::obtainBodyTrackingFileSuffix(std::string fileName) {
+std::string IOUtils::obtainBodyTrackingFileSuffix(std::string fileName, bool* skipBtCloudProcessing) {
 	if (fileName == "") {
 		return "";
 	}
 	string startChars = "///";
+	string startChars2 = "///-";
 	ifstream infile(fileName);
 
+	bool startCharsFound = false;
 	string fileNameSuffix = "";
 	string line;
-	while (getline(infile, line)) {
+	while (getline(infile, line) && !startCharsFound) {
 		if (line.compare(startChars) == 0) {
-			// Assume next line is the body tracking file name
-			if (getline(infile, fileNameSuffix)) {
-				// Body tracking file suffix is found, no need to continue processing
-				break;
-			}
-			else {
-				throw "Error obtaining body tracking file suffix. Body tracking file name suffix must be specified in the line following the \"///\" regex.";
-			}
+			startCharsFound = true;
+			*skipBtCloudProcessing = false;
+			break;
+		}
+		else if (line.compare(startChars2) == 0) {
+			startCharsFound = true;
+			*skipBtCloudProcessing = true;
+			break;
+		}
+	}
+
+	if (startCharsFound) {
+		// Assume next line is the body tracking file name
+		if (getline(infile, fileNameSuffix)) {
+			// Body tracking file suffix is found, no need to continue processing
+		}
+		else {
+			throw "Error obtaining body tracking file suffix. Body tracking file name suffix must be specified in the line following the \"///\" or \"///-\" expressions.";
 		}
 	}
 
